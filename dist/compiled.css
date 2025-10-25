@@ -771,6 +771,7 @@ html.dark .btn-secondary:hover {
   transform: translateX(200%);
   transition: transform 0.5s ease-in-out;
   background-color: white;
+  color: #374151;
 }
 .notification.show {
   transform: translateX(0);

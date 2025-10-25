@@ -168,6 +168,7 @@ html.dark .btn-secondary:hover {
     transition: transform 0.5s ease-in-out;
     /* 💡 增加亮色模式預設背景，暗黑模式需另外定義通知背景 */
     background-color: white;
+    color: #374151;
 }
 
 .notification.show {
