@@ -25,6 +25,10 @@
 /* ======================================= */
 /* 亮色模式 / 預設樣式 (Light Mode / Default) */
 /* ======================================= */
+/* 1. 導入 Tailwind CSS 樣式 */
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
     /* Tailwind: bg-gray-50 (Light Mode Base Background) */
     background-color: #f8fafc;
@@ -49,6 +53,7 @@ body {
     color: white;
     transition: background-color 0.2s;
 }
+
 .btn-primary:hover {
     /* Tailwind: bg-indigo-700 */
     background-color: #4338ca;
@@ -62,6 +67,7 @@ body {
     color: #374151;
     transition: background-color 0.2s;
 }
+
 .btn-secondary:hover {
     /* Tailwind: bg-gray-300 */
     background-color: #d1d5db;
@@ -74,6 +80,7 @@ body {
     color: white;
     transition: background-color 0.2s;
 }
+
 .btn-warning:hover {
     /* Tailwind: bg-orange-600 */
     background-color: #ea580c;
@@ -104,6 +111,7 @@ html.dark .btn-primary {
     /* Tailwind: dark:bg-indigo-700 */
     background-color: #4338ca;
 }
+
 html.dark .btn-primary:hover {
     /* Tailwind: dark:bg-indigo-600 */
     background-color: #4f46e5;
@@ -116,6 +124,7 @@ html.dark .btn-secondary {
     /* Tailwind: dark:text-gray-200 */
     color: #e5e7eb;
 }
+
 html.dark .btn-secondary:hover {
     /* Tailwind: dark:bg-gray-600 */
     background-color: #4b5563;
@@ -133,9 +142,17 @@ html.dark .btn-secondary:hover {
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
+
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* --- Notification (無須修改) --- */
@@ -152,14 +169,17 @@ html.dark .btn-secondary:hover {
     /* 💡 增加亮色模式預設背景，暗黑模式需另外定義通知背景 */
     background-color: white;
 }
+
 .notification.show {
     transform: translateX(0);
 }
 
 /* 💡 暗黑模式下的通知背景 (建議用 JS 處理，或在這裡補上) */
 html.dark .notification {
-    background-color: #374151; /* dark:bg-gray-700 */
-    color: #f3f4f6; /* dark:text-gray-100 */
+    background-color: #374151;
+    /* dark:bg-gray-700 */
+    color: #f3f4f6;
+    /* dark:text-gray-100 */
 }
 
 
@@ -174,14 +194,47 @@ html.dark .notification {
 }
 
 /* 亮色模式 (已定義) */
-.day-cell.future-day { background-color: #d1d5db; color: #4b5563; }
-.day-cell.normal-day { background-color: #f3f4f6; color: #1f2937; }
-.day-cell.abnormal-day { background-color: #fecaca; color: #ef4444; }
-.day-cell.pending-adjustment { background-color: #fde68a; color: #d97706; }
-.day-cell.pending-virtual { background-color: #e9d5ff; color: #9333ea; }
-.day-cell.approved-virtual { background-color: #bfdbfe; color: #2563eb; }
-.day-cell.day-off { background-color: #ccfbf1; color: #0d9488; }
-.day-cell.today { background-color: #86efac; color: #166534; font-weight: bold; }
+.day-cell.future-day {
+    background-color: #d1d5db;
+    color: #4b5563;
+}
+
+.day-cell.normal-day {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+.day-cell.abnormal-day {
+    background-color: #fecaca;
+    color: #ef4444;
+}
+
+.day-cell.pending-adjustment {
+    background-color: #fde68a;
+    color: #d97706;
+}
+
+.day-cell.pending-virtual {
+    background-color: #e9d5ff;
+    color: #9333ea;
+}
+
+.day-cell.approved-virtual {
+    background-color: #bfdbfe;
+    color: #2563eb;
+}
+
+.day-cell.day-off {
+    background-color: #ccfbf1;
+    color: #0d9488;
+}
+
+.day-cell.today {
+    background-color: #86efac;
+    color: #166534;
+    font-weight: bold;
+}
+
 .day-cell:hover {
     transform: translateY(-2px);
     box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -189,25 +242,65 @@ html.dark .notification {
 
 
 /* 💡 暗黑模式下的日曆單元格 */
-html.dark .day-cell.future-day { background-color: #374151; color: #9ca3af; } /* dark:bg-gray-700, dark:text-gray-400 */
-html.dark .day-cell.normal-day { background-color: #1f2937; color: #d1d5db; } /* dark:bg-gray-800, dark:text-gray-300 */
-html.dark .day-cell.abnormal-day { background-color: #991b1b; color: #fecaca; } /* dark:bg-red-800, dark:text-red-300 */
-html.dark .day-cell.pending-adjustment { background-color: #92400e; color: #fde68a; } /* dark:bg-amber-800, dark:text-amber-300 */
-html.dark .day-cell.pending-virtual { background-color: #581c87; color: #e9d5ff; } /* dark:bg-purple-800, dark:text-purple-300 */
-html.dark .day-cell.approved-virtual { background-color: #1e40af; color: #bfdbfe; } /* dark:bg-blue-800, dark:text-blue-300 */
-html.dark .day-cell.day-off { background-color: #065f46; color: #ccfbf1; } /* dark:bg-teal-800, dark:text-teal-300 */
-html.dark .day-cell.today {
-    background-color: #15803d; /* dark:bg-green-700 */
-    color: #bbf7d0; /* dark:text-green-200 */
+html.dark .day-cell.future-day {
+    background-color: #374151;
+    color: #9ca3af;
 }
+
+/* dark:bg-gray-700, dark:text-gray-400 */
+html.dark .day-cell.normal-day {
+    background-color: #1f2937;
+    color: #d1d5db;
+}
+
+/* dark:bg-gray-800, dark:text-gray-300 */
+html.dark .day-cell.abnormal-day {
+    background-color: #991b1b;
+    color: #fecaca;
+}
+
+/* dark:bg-red-800, dark:text-red-300 */
+html.dark .day-cell.pending-adjustment {
+    background-color: #92400e;
+    color: #fde68a;
+}
+
+/* dark:bg-amber-800, dark:text-amber-300 */
+html.dark .day-cell.pending-virtual {
+    background-color: #581c87;
+    color: #e9d5ff;
+}
+
+/* dark:bg-purple-800, dark:text-purple-300 */
+html.dark .day-cell.approved-virtual {
+    background-color: #1e40af;
+    color: #bfdbfe;
+}
+
+/* dark:bg-blue-800, dark:text-blue-300 */
+html.dark .day-cell.day-off {
+    background-color: #065f46;
+    color: #ccfbf1;
+}
+
+/* dark:bg-teal-800, dark:text-teal-300 */
+html.dark .day-cell.today {
+    background-color: #15803d;
+    /* dark:bg-green-700 */
+    color: #bbf7d0;
+    /* dark:text-green-200 */
+}
+
 html.dark .day-cell:hover {
     /* 確保 hover 效果在暗色模式下仍可見 */
     transform: translateY(-2px);
     box-shadow: 0 2px 4px -1px rgb(255 255 255 / 0.1), 0 1px 2px -1px rgb(255 255 255 / 0.05);
 }
+
 /* 確保地圖容器的背景在反轉時不會出現亮色閃爍 */
 #map {
-    background: #1e1e1e; /* 設置一個深色背景 */
+    background: #1e1e1e;
+    /* 設置一個深色背景 */
 }
 
 /* 當 HTML 處於暗黑模式時，對 Leaflet 的圖層應用濾鏡 */

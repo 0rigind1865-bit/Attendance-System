@@ -1,0 +1,459 @@
+// ===================================
+// js/admin.js
+// 依賴: state.js (adminMonthDataCache, DOM 元素), core.js, ui.js
+// ===================================
+
+// ===================================
+// #region 1. 管理員日曆與紀錄渲染
+// ===================================
+
+/**
+ * 渲染指定員工的日曆 (管理員專用)
+ * 修正: 使用 state.js 中宣告的 DOM 變數
+ * @param {string} userId - 要查詢的員工 userId
+ * @param {Date} date - 要查詢的月份日期物件
+ */
+async function renderAdminCalendar(userId, date) {
+    // 修正：使用全域變數 (來自 state.js 並在 app.js/getDOMElements 中賦值)
+    // 之前錯誤地使用 document.getElementById，現已修正為全域變數：
+    const monthTitle = adminCurrentMonthDisplay;
+    const calendarGrid = adminCalendarGrid; // 假設您在 state.js 中宣告了 adminCalendarGrid
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const today = new Date();
+
+    const monthkey = `${userId}-${year}-${String(month + 1).padStart(2, "0")}`;
+
+    if (adminMonthDataCache[monthkey]) {
+        const records = adminMonthDataCache[monthkey];
+        // renderCalendarWithData 來自 ui.js
+        renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
+    } else {
+        calendarGrid.innerHTML = '<div data-i18n="LOADING" class="col-span-full text-center text-gray-500 py-4">正在載入...</div>';
+        renderTranslations(calendarGrid); // 來自 core.js
+
+        try {
+            const monthStr = String(month + 1).padStart(2, "0");
+            const monthKey = `${year}-${monthStr}`;
+
+            const res = await callApifetch({
+                action: 'getAttendanceDetails',
+                month: monthKey,
+                userId: userId // 參數名稱應與後端一致
+            });
+
+            if (res.ok) {
+                adminMonthDataCache[monthkey] = res.records;
+                calendarGrid.innerHTML = '';
+                const records = adminMonthDataCache[monthkey] || [];
+                renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
+            } else {
+                console.error("Failed to fetch admin attendance records:", res.msg);
+                showNotification(res.msg || t("ERROR_FETCH_RECORDS"), "error"); // 來自 core.js
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+}
+
+/**
+ * 渲染管理員視圖中，某一天點擊後的打卡紀錄
+ * @param {string} dateKey - 點擊的日期 (YYYY-MM-DD)
+ * @param {string} userId - 管理員選定的員工 ID
+ */
+async function renderAdminDailyRecords(dateKey, userId) {
+    // 確保使用全域變數，而非 document.getElementById
+    adminDailyRecordsTitle.textContent = t("DAILY_RECORDS_TITLE", { dateKey: dateKey });
+
+    adminDailyRecordsList.innerHTML = '';
+    adminDailyRecordsEmpty.style.display = 'none';
+    adminDailyRecordsCard.style.display = 'block';
+    adminRecordsLoading.style.display = 'block';
+
+    // ... (快取和 API 邏輯與您提供的相同) ...
+    const dateObject = new Date(dateKey);
+    const monthKey = dateObject.getFullYear() + "-" + String(dateObject.getMonth() + 1).padStart(2, "0");
+    const adminCacheKey = `${userId}-${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, "0")}`;
+
+    if (adminMonthDataCache[adminCacheKey]) {
+        renderRecords(adminMonthDataCache[adminCacheKey]);
+        adminRecordsLoading.style.display = 'none';
+    } else {
+        try {
+            const res = await callApifetch({
+                action: 'getAttendanceDetails',
+                month: monthKey,
+                targetUserId: userId
+            }, 'admin-records-loading');
+
+            adminRecordsLoading.style.display = 'none';
+
+            if (res.ok) {
+                adminMonthDataCache[adminCacheKey] = res.records;
+                renderRecords(res.records);
+            } else {
+                console.error("Admin: Failed to fetch attendance records:", res.msg);
+                showNotification(t("ERROR_FETCH_RECORDS"), "error");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 內部函式：渲染日紀錄列表
+    function renderRecords(records) {
+        const dailyRecords = records.filter(record => record.date === dateKey);
+
+        if (dailyRecords.length > 0) {
+            adminDailyRecordsEmpty.style.display = 'none';
+
+            dailyRecords.forEach(records => {
+                const li = document.createElement('li');
+                li.className = 'p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
+
+                const recordHtml = records.record.map(r => {
+                    const typeKey = r.type === '上班' ? 'PUNCH_IN' : 'PUNCH_OUT';
+                    return `
+                        <p class="font-medium text-gray-800 dark:text-white">${r.time} - ${t(typeKey)}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">地點: ${r.location}</p>
+                    `;
+                }).join("");
+
+                li.innerHTML = `${recordHtml}
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                    <span data-i18n="RECORD_REASON_PREFIX">系統判斷：</span> ${t(records.reason)}
+                                </p>`;
+
+                adminDailyRecordsList.appendChild(li);
+                renderTranslations(li);
+            });
+        } else {
+            adminDailyRecordsEmpty.style.display = 'block';
+        }
+        adminRecordsLoading.style.display = 'none';
+    }
+}
+// #endregion
+
+// ===================================
+// #region 2. 待審核請求與審批
+// ===================================
+
+/**
+ * 取得並渲染所有待審核的請求。
+ */
+async function fetchAndRenderReviewRequests() {
+    // 修正：使用全域變數 (來自 state.js 並在 app.js/getDOMElements 中賦值)
+    const loadingEl = requestsLoading;
+    const emptyEl = requestsEmpty;
+    const listEl = pendingRequestsList; // 假設您在 state.js 中正確宣告了這些變數
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = '';
+
+    try {
+        const res = await callApifetch({ action: 'getReviewRequest' }); // 來自 core.js
+        if (res.ok && Array.isArray(res.reviewRequest)) {
+            pendingRequests = res.reviewRequest; // 來自 state.js
+
+            if (pendingRequests.length === 0) {
+                emptyEl.style.display = 'block';
+            } else {
+                renderReviewRequests(pendingRequests);
+            }
+        } else {
+            showNotification("取得待審核請求失敗：" + res.msg, "error"); // 來自 core.js
+            emptyEl.style.display = 'block';
+        }
+    } catch (error) {
+        showNotification("取得待審核請求失敗，請檢查網路。", "error");
+        emptyEl.style.display = 'block';
+        console.error("Failed to fetch review requests:", error);
+    } finally {
+        loadingEl.style.display = 'none';
+    }
+}
+
+/**
+ * 根據資料渲染待審核列表。
+ * 修正: 使用全域變數 pendingRequestsList
+ * @param {Array<Object>} requests - 請求資料陣列。
+ */
+function renderReviewRequests(requests) {
+    const listEl = pendingRequestsList; // 修正：使用全域變數
+    listEl.innerHTML = '';
+
+    requests.forEach((req, index) => {
+        const li = document.createElement('li');
+        li.className = 'p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col space-y-2 dark:bg-gray-700';
+        // ... (HTML 結構不變) ...
+        li.innerHTML = `
+             <div class="flex flex-col space-y-1">
+
+                        <div class="flex items-center justify-between w-full">
+                            <p class="text-sm font-semibold text-gray-800 dark:text-white">${req.name} - ${req.remark}</p>
+                            <span class="text-xs text-gray-500">${req.applicationPeriod}</span>
+                        </div>
+                    </div>
+                    
+                <div class="flex items-center justify-between w-full mt-2">
+                    <p 
+                        data-i18n-key="${req.type}" 
+                        class="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+                    </p> 
+                    
+                    <div class="flex space-x-2"> 
+                        <button data-i18n="ADMIN_APPROVE_BUTTON" data-index="${index}" class="approve-btn px-3 py-1 rounded-md text-sm font-bold btn-primary">核准</button>
+                        <button data-i18n="ADMIN_REJECT_BUTTON" data-index="${index}" class="reject-btn px-3 py-1 rounded-md text-sm font-bold btn-warning">拒絕</button>
+                    </div>
+                </div>
+            `;
+        listEl.appendChild(li);
+        renderTranslations(li); // 來自 core.js
+    });
+
+    // 事件綁定 (審批動作)
+    listEl.querySelectorAll('.approve-btn').forEach(button => {
+        button.addEventListener('click', (e) => handleReviewAction(e.currentTarget, e.currentTarget.dataset.index, 'approve'));
+    });
+
+    listEl.querySelectorAll('.reject-btn').forEach(button => {
+        button.addEventListener('click', (e) => handleReviewAction(e.currentTarget, e.currentTarget.dataset.index, 'reject'));
+    });
+}
+
+/**
+ * 處理審核動作（核准或拒絕）。
+ */
+async function handleReviewAction(button, index, action) {
+    const request = pendingRequests[index]; // 來自 state.js
+    // ... (錯誤檢查與 API 呼叫邏輯與您提供的相同) ...
+
+    const recordId = request.id;
+    const endpoint = action === 'approve' ? 'approveReview' : 'rejectReview';
+    const loadingText = t('LOADING') || '處理中...';
+
+    // generalButtonState 來自 ui.js
+    generalButtonState(button, 'processing', loadingText);
+
+    try {
+        const res = await callApifetch({
+            action: endpoint,
+            id: recordId
+        });
+        if (res.ok) {
+            const translationKey = action === 'approve' ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED';
+            showNotification(t(translationKey), "success");
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // 成功後重新整理列表
+            fetchAndRenderReviewRequests();
+        } else {
+            showNotification(t('REVIEW_FAILED', { msg: res.msg }), "error");
+        }
+    } catch (err) {
+        showNotification(t("REVIEW_NETWORK_ERROR"), "error");
+        console.error(err);
+    } finally {
+        generalButtonState(button, 'idle'); // generalButtonState 來自 ui.js
+    }
+}
+// #endregion
+
+// ===================================
+// #region 3. 員工列表與管理員初始化
+// ===================================
+
+/**
+ * 載入員工列表 (新增一個 GAS 函式來獲取所有員工)
+ * 修正: 使用全域變數 adminSelectEmployee
+ */
+async function loadEmployeeList() {
+    const loadingId = "loading-employees";
+
+    try {
+        const data = await callApifetch({ action: 'getEmployeeList' }, loadingId);
+        if (data && data.ok === true) {
+            const employees = data.employeesList;
+            allEmployeeList = employees; // 儲存員工列表 (來自 state.js)
+
+            // 清空並填充下拉菜單 (使用全域變數)
+            adminSelectEmployee.innerHTML = '<option value="">-- 請選擇一位員工 --</option>';
+            employees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = employee.userId;
+                option.textContent = `${employee.name} (${employee.userId.substring(0, 8)}...)`;
+                adminSelectEmployee.appendChild(option);
+            });
+        } else {
+            console.error("載入員工列表時 API 回傳失敗:", data.message);
+            showNotification(data.message || t("FAILED_TO_LOAD_EMPLOYEES"), "error");
+        }
+    } catch (e) {
+        console.error("loadEmployeeList 呼叫流程錯誤:", e);
+    }
+}
+
+
+/**
+ * 設置待審核請求區塊的收合/展開功能。
+ */
+function setupRequestToggle() {
+    // 修正：使用全域變數 (來自 state.js 並在 app.js/getDOMElements 中賦值)
+    const toggleButton = toggleRequestsBtn;
+    const contentDiv = pendingRequestsContent;
+    const iconSpan = toggleRequestsIcon; // 假設您在 state.js 中宣告了這些變數
+
+    if (!toggleButton || !contentDiv || !iconSpan) {
+        return;
+    }
+
+    function toggleCollapse() {
+        // ... (收合/展開邏輯與您提供的相同) ...
+        contentDiv.classList.toggle('hidden');
+
+        if (contentDiv.classList.contains('hidden')) {
+            toggleButton.classList.add('rotate-180');
+        } else {
+            toggleButton.classList.remove('rotate-180');
+        }
+    }
+
+    toggleButton.addEventListener('click', toggleCollapse);
+}
+
+
+/**
+ * 統一管理員頁面事件的綁定
+ */
+function initAdminEvents() {
+    // 1. 處理員工選擇事件
+    adminSelectEmployee.addEventListener('change', async (e) => {
+        adminSelectedUserId = e.target.value; // 來自 state.js
+        if (adminSelectedUserId) {
+            adminEmployeeCalendarCard.style.display = 'block';
+            await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
+        } else {
+            adminEmployeeCalendarCard.style.display = 'none';
+        }
+    });
+
+    // 2. 處理月份切換事件
+    adminPrevMonthBtn.addEventListener('click', () => {
+        adminCurrentDate.setMonth(adminCurrentDate.getMonth() - 1);
+        if (adminSelectedUserId) {
+            renderAdminCalendar(adminSelectedUserId, adminCurrentDate);
+        }
+    });
+
+    adminNextMonthBtn.addEventListener('click', () => {
+        adminCurrentDate.setMonth(adminCurrentDate.getMonth() + 1);
+        if (adminSelectedUserId) {
+            renderAdminCalendar(adminSelectedUserId, adminCurrentDate);
+        }
+    });
+
+    // 3. 設置待審核請求收合功能
+    setupRequestToggle();
+
+    // 4. 地點新增功能（管理員專用）
+    getLocationBtn.addEventListener('click', () => {
+        // ... (您提供的定位邏輯) ...
+        if (!navigator.geolocation) {
+            showNotification(t("ERROR_GEOLOCATION", { msg: t('ERROR_BROWSER_NOT_SUPPORTED') }), "error");
+            return;
+        }
+
+        // 修正：使用全域變數
+        getLocationBtn.textContent = '取得中...';
+        getLocationBtn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition((pos) => {
+            locationLatInput.value = pos.coords.latitude;
+            locationLngInput.value = pos.coords.longitude;
+            getLocationBtn.textContent = '已取得';
+            addLocationBtn.disabled = false;
+            showNotification("位置已成功取得！", "success");
+        }, (err) => {
+            showNotification(t("ERROR_GEOLOCATION", { msg: err.message }), "error");
+            getLocationBtn.textContent = '取得當前位置';
+            getLocationBtn.disabled = false;
+        });
+    });
+
+    // 5. 處理新增打卡地點
+    addLocationBtn.addEventListener('click', async () => {
+        const name = locationName.value; // 假設您有宣告 locationName
+        const lat = locationLatInput.value;
+        const lng = locationLngInput.value;
+
+        if (!name || !lat || !lng) {
+            showNotification("請填寫所有欄位並取得位置", "error");
+            return;
+        }
+
+        try {
+            const res = await callApifetch({
+                action: 'addLocation',
+                name: name,
+                lat: encodeURIComponent(lat),
+                lng: encodeURIComponent(lng)
+            });
+            if (res.ok) {
+                showNotification("地點新增成功！", "success");
+                // 清空輸入欄位
+                locationName.value = ''; // 假設您有宣告 locationName
+                locationLatInput.value = '';
+                locationLngInput.value = '';
+                // 重設按鈕狀態
+                getLocationBtn.textContent = '取得當前位置';
+                getLocationBtn.disabled = false;
+                addLocationBtn.disabled = true;
+            } else {
+                showNotification("新增地點失敗：" + res.msg, "error");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    });
+}
+
+/**
+ * 管理員儀表板的總啟動函式 (供 app.js 呼叫)
+ */
+async function loadAdminDashboard() {
+    // 確保 adminEventsBound 在 state.js 中被宣告為 let adminEventsBound = false;
+    if (!adminEventsBound) {
+        initAdminEvents();
+        adminEventsBound = true;
+    }
+
+    // 1. 載入員工列表並填充下拉選單
+    await loadEmployeeList();
+
+    // 2. 載入待審核請求
+    await fetchAndRenderReviewRequests();
+}
+// #endregion
+
+// ===================================
+// #region 4. API 測試（通用但為開發目的，可放在 core.js 或 app.js/bindEvents）
+// 這裡暫時保留在 admin.js，但建議移動到 app.js/bindEvents
+// ===================================
+
+document.getElementById('test-api-btn').addEventListener('click', async () => {
+    const testAction = "testEndpoint";
+    try {
+        const res = await callApifetch({ action: testAction });
+        if (res && res.ok) {
+            showNotification("API 測試成功！回應：" + JSON.stringify(res), "success");
+        } else {
+            showNotification("API 測試失敗：" + (res ? res.msg : "無回應資料"), "error");
+        }
+    } catch (error) {
+        console.error("API 呼叫發生錯誤:", error);
+        showNotification("API 呼叫失敗，請檢查網路連線或後端服務。", "error");
+    }
+});

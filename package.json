@@ -1,0 +1,26 @@
+{
+  "name": "attendance-system",
+  "version": "1.0.0",
+  "description": "[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0rigind1865-bit/Attendance-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/0rigind1865-bit/Attendance-System/issues"
+  },
+  "homepage": "https://github.com/0rigind1865-bit/Attendance-System#readme",
+  "devDependencies": {
+    "tailwindcss": "^4.1.16"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.16"
+  }
+}
