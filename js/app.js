@@ -143,7 +143,19 @@ function getDOMElements() {
 function bindEvents() {
     // 登入/登出事件
     loginBtn.onclick = async () => {
-        const res = await callApifetch({ action: 'getLoginUrl' });
+        // --- 【新增：環境判斷邏輯】 ---
+        const currentUrl = window.location.href;
+        // 判斷當前網址是否包含正式環境的域名
+        const isProduction = currentUrl.includes(PROD_HOST);
+        // 準備傳遞給 GAS 的參數 (payload)
+        const payload = {
+            action: 'getLoginUrl',
+            // 將判斷結果作為參數傳給後端
+            isProduction: isProduction ? 'true' : 'false'
+            // GAS 後端會讀取這個參數來決定 baseUrl
+        };
+        const res = await callApifetch(payload);
+        //const res = await callApifetch({ action: 'getLoginUrl' });
         if (res.url) window.location.href = res.url;
     };
 
