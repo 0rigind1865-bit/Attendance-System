@@ -33,7 +33,7 @@ async function renderCalendar(date) {
             })
             if (res.ok) {
                 // 將資料存入快取
-                monthDataCache[monthkey] = res.records;
+                monthDataCache[monthkey] = res.records.dailyStatus;
 
                 // 收到資料後，清空載入訊息
                 calendarGrid.innerHTML = '';
@@ -52,7 +52,6 @@ async function renderCalendar(date) {
 }
 
 // 新增一個獨立的渲染函式，以便從快取或 API 回應中調用
-// 🌟 關鍵修改：新增 isForAdmin 參數
 function renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, isForAdmin = false) {
     // 確保日曆網格在每次渲染前被清空
     calendarGrid.innerHTML = '';
@@ -60,6 +59,20 @@ function renderCalendarWithData(year, month, today, records, calendarGrid, month
         year: year,
         month: month + 1
     });
+
+    // 移除舊的累計時數行
+    const existingTotalRows = calendarGrid.parentNode.querySelectorAll('.total-hours-row');
+    existingTotalRows.forEach(row => row.remove());
+
+    // 計算本月累計時數
+    const currentMonthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+    let totalHours = 0;
+    records.forEach(r => {
+        if (r.date.startsWith(currentMonthKey)) {
+            totalHours += parseFloat(r.hours || 0);
+        }
+    });
+    totalHours = totalHours.toFixed(2);
 
     // 取得該月第一天是星期幾
     const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -140,6 +153,28 @@ function renderCalendarWithData(year, month, today, records, calendarGrid, month
 
         calendarGrid.appendChild(dayCell);
     }
+
+    // 填補月末的空白格子，使日曆填滿完整的行數
+    const cellsAdded = firstDayOfMonth + daysInMonth;
+    const rowsNeeded = Math.ceil(cellsAdded / 7);
+    const totalCells = rowsNeeded * 7;
+    const remainingCells = totalCells - cellsAdded;
+
+    for (let i = 0; i < remainingCells; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'day-cell empty';
+        calendarGrid.appendChild(emptyCell);
+    }
+
+    // 在日曆最下面一行顯示本月累計時數（作為獨立的全寬行）
+    const totalRow = document.createElement('div');
+    totalRow.className = 'total-hours-row mt-2 p-2 bg-gray-100 dark:bg-gray-700 text-center rounded-lg';
+    totalRow.innerHTML = `
+        <span data-i18n="MONTH_TOTAL_HOURS_PREFIX">本月累計時數：</span>
+        ${totalHours} 小時
+    `;
+    calendarGrid.parentNode.appendChild(totalRow);
+    renderTranslations(totalRow); // 如果有翻譯需求，渲染翻譯
 }
 
 // 新增：渲染每日紀錄的函式 (修正非同步問題)
@@ -178,8 +213,9 @@ async function renderDailyRecords(dateKey) {
             recordsLoading.style.display = 'none';
             if (res.ok) {
                 // 將資料存入快取
-                monthDataCache[month] = res.records;
-                renderRecords(res.records);
+                console.log(res.records.dailyStatus);
+                monthDataCache[month] = res.records.dailyStatus;
+                renderRecords(res.records.dailyStatus);
             } else {
                 console.error("Failed to fetch attendance records:", res.msg);
                 showNotification(t("ERROR_FETCH_RECORDS"), "error");
@@ -189,39 +225,84 @@ async function renderDailyRecords(dateKey) {
         }
     }
 
+    /**
+     * 渲染指定月份的出席記錄，過濾出所選日期的紀錄，並在畫面上顯示。
+     * 每個打卡記錄獨立渲染成一張卡片，上班與下班使用不同顏色。
+     * 系統判斷與當日工作時數顯示在卡片列表外部。
+     * @param {Array} records - 出席記錄陣列，每個元素包含 date, record, reason, hours 等資訊。
+     */
     function renderRecords(records) {
         // 從該月份的所有紀錄中，過濾出所選日期的紀錄
         const dailyRecords = records.filter(record => {
-
-            return record.date === dateKey
+            return record.date === dateKey;
         });
+
+        // 清空現有列表
+        dailyRecordsList.innerHTML = '';
+
+        // 移除舊的 externalInfo（假設 className 為 'daily-summary' 以便識別）
+        const existingSummaries = dailyRecordsList.parentNode.querySelectorAll('.daily-summary');
+        existingSummaries.forEach(summary => summary.remove());
+
         if (dailyRecords.length > 0) {
             dailyRecordsEmpty.style.display = 'none';
-            dailyRecords.forEach(records => {
-                const li = document.createElement('li');
-                li.className = 'p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
-                const recordHtml = records.record.map(r => {
+
+            // 假設 dailyRecords 通常只有一個（單一日期），但以 forEach 處理可能多個
+            dailyRecords.forEach(dailyRecord => {
+                // 為每個打卡記錄創建獨立卡片
+                dailyRecord.record.forEach(r => {
+                    const li = document.createElement('li');
+                    li.className = 'p-3 rounded-lg';
+
+                    // 根據 type 設定不同顏色
+                    if (r.type === '上班') {
+                        li.classList.add('bg-blue-50', 'dark:bg-blue-700'); // 上班顏色（藍色系）
+                    } else if (r.type === '下班') {
+                        li.classList.add('bg-green-50', 'dark:bg-green-700'); // 下班顏色（綠色系）
+                    } else {
+                        li.classList.add('bg-gray-50', 'dark:bg-gray-700'); // 其他類型（灰色系）
+                    }
+
                     // 根據 r.type 的值來選擇正確的翻譯鍵值
                     const typeKey = r.type === '上班' ? 'PUNCH_IN' : 'PUNCH_OUT';
 
-                    return `
-                        <p class="font-medium text-gray-800 dark:text-white">${r.time} - ${t(typeKey)}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">${r.location}</p>
-                        <p data-i18n="RECORD_NOTE_PREFIX" class="text-sm text-gray-500 dark:text-gray-400">備註：${r.note}</p>
-                    `;
-                }).join("");
+                    // 產生單一打卡記錄的 HTML
+                    li.innerHTML = `
+                    <p class="font-medium text-gray-800 dark:text-white">${r.time} - ${t(typeKey)}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${r.location}</p>
+                    <p data-i18n="RECORD_NOTE_PREFIX" class="text-sm text-gray-500 dark:text-gray-400">備註：${r.note}</p>
+                `;
 
-                li.innerHTML = `
-    ${recordHtml}
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-        <span data-i18n="RECORD_REASON_PREFIX">系統判斷：</span>
-        
-        ${t(records.reason)}
-    </p>                `;
-                dailyRecordsList.appendChild(li);
-                renderTranslations(li);
+                    dailyRecordsList.appendChild(li);
+                    renderTranslations(li);  // 渲染翻譯
+                });
+
+                // 在卡片列表外部顯示系統判斷與時數
+                const externalInfo = document.createElement('div');
+                externalInfo.className = 'daily-summary mt-4 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg';
+
+                let hoursHtml = '';
+                if (dailyRecord.hours > 0) {
+                    hoursHtml = `
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <span data-i18n="RECORD_HOURS_PREFIX">當日工作時數：</span>
+                        ${dailyRecord.hours} 小時
+                    </p>
+                `;
+                }
+
+                externalInfo.innerHTML = `
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    <span data-i18n="RECORD_REASON_PREFIX">系統判斷：</span>
+                    ${t(dailyRecord.reason)}
+                </p>
+                ${hoursHtml}
+            `;
+
+                // append 到 dailyRecordsList 後面
+                dailyRecordsList.parentNode.appendChild(externalInfo);
+                renderTranslations(externalInfo);  // 渲染翻譯
             });
-
         } else {
             dailyRecordsEmpty.style.display = 'block';
         }

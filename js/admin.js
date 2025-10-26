@@ -44,7 +44,7 @@ async function renderAdminCalendar(userId, date) {
             });
 
             if (res.ok) {
-                adminMonthDataCache[monthkey] = res.records;
+                adminMonthDataCache[monthkey] = res.records.dailyStatus;
                 calendarGrid.innerHTML = '';
                 const records = adminMonthDataCache[monthkey] || [];
                 renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
@@ -91,8 +91,8 @@ async function renderAdminDailyRecords(dateKey, userId) {
             adminRecordsLoading.style.display = 'none';
 
             if (res.ok) {
-                adminMonthDataCache[adminCacheKey] = res.records;
-                renderRecords(res.records);
+                adminMonthDataCache[adminCacheKey] = res.records.dailyStatus;
+                renderRecords(res.records.dailyStatus);
             } else {
                 console.error("Admin: Failed to fetch attendance records:", res.msg);
                 showNotification(t("ERROR_FETCH_RECORDS"), "error");
@@ -106,28 +106,71 @@ async function renderAdminDailyRecords(dateKey, userId) {
     function renderRecords(records) {
         const dailyRecords = records.filter(record => record.date === dateKey);
 
+        // 清空現有列表
+        adminDailyRecordsList.innerHTML = '';
+
+        // 移除舊的 externalInfo（假設 className 為 'daily-summary' 以便識別）
+        const existingSummaries = adminDailyRecordsList.parentNode.querySelectorAll('.daily-summary');
+        existingSummaries.forEach(summary => summary.remove());
+
         if (dailyRecords.length > 0) {
             adminDailyRecordsEmpty.style.display = 'none';
 
-            dailyRecords.forEach(records => {
-                const li = document.createElement('li');
-                li.className = 'p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
+            // 假設 dailyRecords 通常只有一個（單一日期），但以 forEach 處理可能多個
+            dailyRecords.forEach(dailyRecord => {
+                // 為每個打卡記錄創建獨立卡片
+                dailyRecord.record.forEach(r => {
+                    const li = document.createElement('li');
+                    li.className = 'p-3 rounded-lg';
 
-                const recordHtml = records.record.map(r => {
+                    // 根據 type 設定不同顏色
+                    if (r.type === '上班') {
+                        li.classList.add('bg-blue-50', 'dark:bg-blue-700'); // 上班顏色（藍色系）
+                    } else if (r.type === '下班') {
+                        li.classList.add('bg-green-50', 'dark:bg-green-700'); // 下班顏色（綠色系）
+                    } else {
+                        li.classList.add('bg-gray-50', 'dark:bg-gray-700'); // 其他類型（灰色系）
+                    }
+
+                    // 根據 r.type 的值來選擇正確的翻譯鍵值
                     const typeKey = r.type === '上班' ? 'PUNCH_IN' : 'PUNCH_OUT';
-                    return `
+
+                    // 產生單一打卡記錄的 HTML
+                    li.innerHTML = `
                         <p class="font-medium text-gray-800 dark:text-white">${r.time} - ${t(typeKey)}</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">地點: ${r.location}</p>
+                        <p data-i18n="RECORD_NOTE_PREFIX" class="text-sm text-gray-500 dark:text-gray-400">備註：${r.note}</p>
                     `;
-                }).join("");
 
-                li.innerHTML = `${recordHtml}
-                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                                    <span data-i18n="RECORD_REASON_PREFIX">系統判斷：</span> ${t(records.reason)}
-                                </p>`;
+                    adminDailyRecordsList.appendChild(li);
+                    renderTranslations(li);  // 渲染翻譯
+                });
 
-                adminDailyRecordsList.appendChild(li);
-                renderTranslations(li);
+                // 在卡片列表外部顯示系統判斷與時數
+                const externalInfo = document.createElement('div');
+                externalInfo.className = 'daily-summary mt-4 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg';
+
+                let hoursHtml = '';
+                if (dailyRecord.hours > 0) {
+                    hoursHtml = `
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            <span data-i18n="RECORD_HOURS_PREFIX">當日工作時數：</span>
+                            ${dailyRecord.hours} 小時
+                        </p>
+                    `;
+                }
+
+                externalInfo.innerHTML = `
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <span data-i18n="RECORD_REASON_PREFIX">系統判斷：</span>
+                        ${t(dailyRecord.reason)}
+                    </p>
+                    ${hoursHtml}
+                `;
+
+                // append 到 adminDailyRecordsList 後面
+                adminDailyRecordsList.parentNode.appendChild(externalInfo);
+                renderTranslations(externalInfo);  // 渲染翻譯
             });
         } else {
             adminDailyRecordsEmpty.style.display = 'block';

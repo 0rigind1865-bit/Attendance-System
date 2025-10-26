@@ -11,8 +11,7 @@ let adminCurrentDate = new Date(); // 初始化為當前月份
 let allEmployeeList = []; // 用於儲存所有員工列表
 const adminMonthDataCache = {};
 
-// 定義您的正式環境特徵
-const PROD_HOST = '0rigind1865-bit.github.io';
+
 
 // 員工/通用 UI 元素
 let loginBtn = null;
