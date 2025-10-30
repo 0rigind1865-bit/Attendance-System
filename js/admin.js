@@ -1,3 +1,22 @@
+/**
+Copyright (C) 2025 0J (Lin Jie / 0rigin1856)
+
+This file is part of 0riginAttendance-System.
+
+0riginAttendance-System is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+0riginAttendance-System is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with 0riginAttendance-System. If not, see <https://www.gnu.org/licenses/>.
+Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this project.
+ */
 // ===================================
 // js/admin.js
 // 依賴: state.js (adminMonthDataCache, DOM 元素), core.js, ui.js
@@ -330,6 +349,14 @@ async function loadEmployeeList() {
                 option.textContent = `${employee.name} (${employee.userId.substring(0, 8)}...)`;
                 adminSelectEmployee.appendChild(option);
             });
+            // 清空並填充下拉菜單 (使用全域變數)
+            adminSelectEmployeeMgmt.innerHTML = '<option value="">-- 請選擇一位員工 --</option>';
+            employees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = employee.userId;
+                option.textContent = `${employee.name} (${employee.userId.substring(0, 8)}...)`;
+                adminSelectEmployeeMgmt.appendChild(option);
+            });
         } else {
             console.error("載入員工列表時 API 回傳失敗:", data.message);
             showNotification(data.message || t("FAILED_TO_LOAD_EMPLOYEES"), "error");
@@ -374,12 +401,87 @@ function setupRequestToggle() {
 function initAdminEvents() {
     // 1. 處理員工選擇事件
     adminSelectEmployee.addEventListener('change', async (e) => {
+
         adminSelectedUserId = e.target.value; // 來自 state.js
         if (adminSelectedUserId) {
             adminEmployeeCalendarCard.style.display = 'block';
             await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
         } else {
             adminEmployeeCalendarCard.style.display = 'none';
+        }
+    });
+
+    // 1. 處理員工選擇事件
+    adminSelectEmployeeMgmt.addEventListener('change', async (e) => {
+        const selectedUserId = e.target.value;
+        const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
+        if (employee) {
+            // 修正屬性名稱：src 和您的資料屬性
+            mgmtEmployeeName.textContent = employee.name;
+            mgmtEmployeeId.textContent = employee.userId;
+            const joinTimeSource = employee.firstLoginTime;
+            if (joinTimeSource) {
+                const joinDate = new Date(joinTimeSource);
+                // 假設 currentLang 已經定義 (在 state.js 中)
+                const formattedDate = joinDate.toLocaleDateString(currentLang, {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                const formattedTime = joinDate.toLocaleTimeString(currentLang, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false // 使用 24 小時制
+                });
+                mgmtEmployeeJoinDate.textContent = `${formattedDate} ${formattedTime}`;
+                const today = new Date();
+
+                // 計算總月份數 (更精確的年資計算方法)
+                const totalMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
+
+                let years = Math.floor(totalMonths / 12);
+                let months = totalMonths % 12;
+
+                // 如果當前日期比入職日期的當月日期早，則月份減一
+                if (today.getDate() < joinDate.getDate()) {
+                    months--;
+                    if (months < 0) {
+                        months += 12;
+                        years--;
+                    }
+                }
+
+                let seniorityText = '';
+                if (years > 0) seniorityText += `${years} ${t("YEAR") || '年'}`;
+                // 只有當月份 > 0 或者總年資不到一年時才顯示月份
+                if (months > 0 || (years === 0 && months === 0)) seniorityText += `${months} ${'個月'}`;
+
+                mgmtEmployeeSeniority.textContent = seniorityText.trim() || 'N/A';
+            } else {
+                mgmtEmployeeJoinDate.textContent = 'N/A';
+                mgmtEmployeeSeniority.textContent = 'N/A';
+            }
+
+            mgmtEmployeeAvatar.src = employee.picture || '預設頭像 URL';
+            salaryValueSpan.innerText = employee.salary || 60;
+            basicSalaryInput.value = employee.salary || 0;
+            if (employee.status === "啟用")
+                toggleActive.checked = true;
+            else
+                toggleActive.checked = false;
+
+            if (employee.position === "管理員")
+                toggleAdmin.checked = true;
+            else
+                toggleAdmin.checked = false;
+
+            employeeDetailCard.style.display = 'block';
+            mgmtPlaceholder.style.display = 'none';
+        } else {
+            // 處理未選擇或找不到的情況
+            employeeDetailCard.style.display = 'none';
+            mgmtPlaceholder.style.display = 'block';
         }
     });
 
@@ -500,3 +602,55 @@ document.getElementById('test-api-btn').addEventListener('click', async () => {
         showNotification("API 呼叫失敗，請檢查網路連線或後端服務。", "error");
     }
 });
+// #endregion
+// ===================================
+
+// ===================================
+// #region 5. 管理員子頁籤切換邏輯
+// ===================================
+/**
+ * 切換管理員頁面內的子頁籤 (Admin Sub-Tab Switcher)
+ * @param {string} subTabId - 要切換到的子頁籤 ID (例如: 'review-requests')
+ */
+
+const switchAdminSubTab = (subTabId) => {
+    const subTabs = ['employee-mgmt-view', 'punch-mgmt-view', 'form-review-view', 'scheduling-view'];
+    const subBtns = ['tab-employee-mgmt-btn', 'tab-punch-mgmt-btn', 'tab-form-review-btn', 'tab-scheduling-btn'];
+
+    // 1. 移除所有子頁籤內容的顯示
+    subTabs.forEach(id => {
+        const tabElement = document.getElementById(id);
+        if (tabElement) {
+            tabElement.style.display = 'none';
+        }
+    });
+
+    subBtns.forEach(id => {
+        const btnElement = document.getElementById(id);
+        btnElement.classList.replace('bg-indigo-600', 'bg-gray-200');
+        btnElement.classList.replace('text-white', 'text-gray-600');
+    });
+
+    // 3. 顯示新頁籤並新增 active 類別
+    const newTabElement = document.getElementById(subTabId);
+    newTabElement.style.display = 'block'; // 顯示內容
+
+    // 4. 設定新頁籤按鈕的選中狀態
+    const newBtnElement = document.getElementById(`tab-${subTabId.replace('-view', '-btn')}`);
+    newBtnElement.classList.replace('bg-gray-200', 'bg-indigo-600');
+    newBtnElement.classList.replace('text-gray-600', 'text-white');
+
+    // 5. 根據子頁籤 ID 執行特定動作 (例如：載入資料)
+    console.log(`切換到管理員子頁籤: ${subTabId}`);
+    if (subTabId === 'review-requests') {
+        fetchAndRenderReviewRequests(); // 載入表單
+    } else if (subTabId === 'manage-Punch') {
+        // renderLocationManagement(); // 待實現
+        console.log('載入打卡管理介面...');
+    } else if (subTabId === 'manage-users') {
+        // renderUserManagement(); // 待實現
+        console.log('載入員工帳號管理介面...');
+    }
+};
+// #endregion
+// ===================================

@@ -1,3 +1,22 @@
+/**
+Copyright (C) 2025 0J (Lin Jie / 0rigin1856)
+
+This file is part of 0riginAttendance-System.
+
+0riginAttendance-System is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+0riginAttendance-System is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with 0riginAttendance-System. If not, see <https://www.gnu.org/licenses/>.
+Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this project.
+ */
 //let currentLang = localStorage.getItem("lang");//當前語言
 let currentMonthDate = new Date();//當前月份
 let translations = {};
@@ -93,3 +112,26 @@ let pendingRequestsContent = null;
 let toggleRequestsIcon = null;
 
 let adminCurrentMonthDisplay = null;
+
+const adminSelectEmployeeMgmt = document.getElementById('admin-select-employee-mgmt'); // 員工選擇下拉選單 (如果需要)
+const employeeDetailCard = document.getElementById('employee-detail-card');
+const mgmtPlaceholder = document.getElementById('mgmt-placeholder');
+const mgmtEmployeeName = document.getElementById('mgmt-employee-name');
+const mgmtEmployeeId = document.getElementById('mgmt-employee-id');
+const mgmtEmployeeAvatar = document.getElementById('mgmt-employee-avatar');
+const mgmtEmployeeSeniority = document.getElementById('mgmt-employee-seniority');
+const mgmtEmployeeJoinDate = document.getElementById('mgmt-employee-join-date');
+
+// 權限與狀態 Toggle
+const toggleAdmin = document.getElementById('toggle-admin');
+const adminStatusSpan = document.getElementById('admin-status');
+const toggleActive = document.getElementById('toggle-active');
+const activeStatusSpan = document.getElementById('active-status');
+
+// 薪資與政策
+const basicSalaryInput = document.getElementById('basic-salary');
+const salaryValueSpan = document.getElementById('salary-value');
+const requireGpsCheckbox = document.getElementById('require-gps');
+const allowManualAdjustCheckbox = document.getElementById('allow-manual-adjust');
+const formLeaveSalary = document.getElementById('form-leave-salary');
+const formPunchPolicy = document.getElementById('form-punch-policy');

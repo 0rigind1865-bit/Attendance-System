@@ -1,3 +1,22 @@
+/**
+Copyright (C) 2025 0J (Lin Jie / 0rigin1856)
+
+This file is part of 0riginAttendance-System.
+
+0riginAttendance-System is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+0riginAttendance-System is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with 0riginAttendance-System. If not, see <https://www.gnu.org/licenses/>.
+Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this project.
+ */
 // ===================================
 // #region 1. 檢查登錄 (修正 ensureLogin 函式)
 // ===================================
@@ -91,6 +110,13 @@ function getDOMElements() {
     tabMonthlyBtn = document.getElementById('tab-monthly-btn');
     tabLocationBtn = document.getElementById('tab-location-btn');
     tabAdminBtn = document.getElementById('tab-admin-btn');
+    tabFormBtn = document.getElementById('tab-Form-btn');
+
+    // 管理員頁面中 子選單Tab 按鈕
+    tabEmployeeMgmtBtn = document.getElementById('tab-employee-mgmt-btn');
+    tabPunchMgmtBtn = document.getElementById('tab-punch-mgmt-btn');
+    tabFormReviewBtn = document.getElementById('tab-form-review-btn');
+    tabSchedulingBtn = document.getElementById('tab-scheduling-btn');
 
     // 員工異常紀錄
     abnormalList = document.getElementById('abnormal-list');
@@ -131,7 +157,7 @@ function getDOMElements() {
     pendingRequestsContent = document.getElementById('pending-requests-content');//
     toggleRequestsBtn = document.getElementById('toggle-requests-btn');
     adminCurrentMonthDisplay = document.getElementById('admin-current-month-display');
-    // 假設所有其他相關 DOM 元素也已在這裡被獲取
+
 }
 // #endregion
 // ===================================
@@ -158,10 +184,20 @@ function bindEvents() {
     punchInBtn.addEventListener('click', () => doPunch("上班"));
     punchOutBtn.addEventListener('click', () => doPunch("下班"));
 
-    // === 導航 Tab 切換事件 (修正 tabAdminBtn 的邏輯) ===
+    // === 導航 Tab 切換事件 ===
     tabDashboardBtn.addEventListener('click', () => switchTab('dashboard-view'));
     tabLocationBtn.addEventListener('click', () => switchTab('location-view'));
     tabMonthlyBtn.addEventListener('click', () => switchTab('monthly-view'));
+
+    tabFormBtn.addEventListener('click', () => switchTab('Form-view'));
+
+
+    // === 導航 管理員子Tab 切換事件 () ===
+    tabEmployeeMgmtBtn.addEventListener('click', () => switchAdminSubTab('employee-mgmt-view'));
+    tabPunchMgmtBtn.addEventListener('click', () => switchAdminSubTab('punch-mgmt-view'));
+    tabFormReviewBtn.addEventListener('click', () => switchAdminSubTab('form-review-view'));
+    tabSchedulingBtn.addEventListener('click', () => switchAdminSubTab('scheduling-view'));
+
 
     // 🌟 修正點：Tab 按鈕點擊時，直接依賴 localStorage 判斷權限
     tabAdminBtn.addEventListener('click', () => {
