@@ -67,6 +67,10 @@ async function renderAdminCalendar(userId, date) {
                 calendarGrid.innerHTML = '';
                 const records = adminMonthDataCache[monthkey] || [];
                 renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
+                // 計算並顯示月總薪資
+                console.log('Records:', records);  // 檢查 records 是否有資料
+                console.log('Salary:', currentManagingEmployee.salary);  // 檢查薪資是否設定
+                calculateAndDisplayMonthlySalary(records);
             } else {
                 console.error("Failed to fetch admin attendance records:", res.msg);
                 showNotification(res.msg || t("ERROR_FETCH_RECORDS"), "error"); // 來自 core.js
@@ -75,6 +79,80 @@ async function renderAdminCalendar(userId, date) {
             console.error(err);
         }
     }
+}
+
+/**
+ * 計算並顯示月總薪資 (包含計算過程)
+ * @param {Array} records - 月份的所有每日記錄
+ */
+function calculateAndDisplayMonthlySalary(records) {
+    const monthlySalary = currentManagingEmployee.salary || 28590; // 預設為2025最低月薪
+    const hourlyRate = (monthlySalary / 240).toFixed(2); // 等效時薪
+    let totalMonthlySalary = 0;
+    let calculationDetails = []; // 儲存每日計算細節
+
+    records.forEach(dailyRecord => {
+        if (dailyRecord.hours > 0) {
+            const { dailySalary, calculation } = calculateDailySalary(dailyRecord.hours, hourlyRate);
+            totalMonthlySalary += dailySalary;
+            calculationDetails.push(`日期 ${dailyRecord.date}: ${calculation}`);
+        }
+    });
+
+    totalMonthlySalary = totalMonthlySalary.toFixed(2);
+
+    // 顯示月總薪資 (假設有 adminMonthlySalaryDisplay 元素，在 state.js 中宣告)
+    adminMonthlySalaryDisplay.innerHTML = `
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            <span data-i18n="MONTHLY_SALARY_PREFIX">本月總薪資：</span>
+            ${totalMonthlySalary} NTD
+        </p>
+        <p class="text-xs text-gray-400 mt-1 italic">
+            計算過程: ${calculationDetails.join('; ')}
+        </p>
+    `;
+    renderTranslations(adminMonthlySalaryDisplay);
+}
+
+/**
+ * 計算單日薪資 (考慮加班倍率)
+ * @param {number} hours - 當日總時數
+ * @param {number} hourlyRate - 等效時薪
+ * @returns {Object} - { dailySalary: number, calculation: string }
+ */
+function calculateDailySalary(hours, hourlyRate) {
+    let dailySalary = 0;
+    let calculation = '';
+
+    if (hours <= 8) {
+        // 正常工時: 直接乘時數
+        dailySalary = hourlyRate * hours;
+        calculation = `${hourlyRate} × ${hours} = ${dailySalary.toFixed(2)}`;
+    } else {
+        // 正常8小時
+        const normalPay = hourlyRate * 8;
+        dailySalary += normalPay;
+        calculation += `${hourlyRate} × 8 (正常) = ${normalPay.toFixed(2)}; `;
+
+        let overtimeHours = hours - 8;
+        // 加班前2小時: 1.33倍
+        if (overtimeHours > 0) {
+            const overtime1 = Math.min(overtimeHours, 2);
+            const overtimePay1 = hourlyRate * overtime1 * 1.33;
+            dailySalary += overtimePay1;
+            calculation += `${hourlyRate} × ${overtime1} × 1.33 (前2小時加班) = ${overtimePay1.toFixed(2)}; `;
+            overtimeHours -= overtime1;
+        }
+        // 加班後續小時: 1.66倍
+        if (overtimeHours > 0) {
+            const overtimePay2 = hourlyRate * overtimeHours * 1.66;
+            dailySalary += overtimePay2;
+            calculation += `${hourlyRate} × ${overtimeHours} × 1.66 (後續加班) = ${overtimePay2.toFixed(2)}; `;
+        }
+        calculation += `總計 = ${dailySalary.toFixed(2)}`;
+    }
+
+    return { dailySalary, calculation };
 }
 
 /**
@@ -91,7 +169,6 @@ async function renderAdminDailyRecords(dateKey, userId) {
     adminDailyRecordsCard.style.display = 'block';
     adminRecordsLoading.style.display = 'block';
 
-    // ... (快取和 API 邏輯與您提供的相同) ...
     const dateObject = new Date(dateKey);
     const monthKey = dateObject.getFullYear() + "-" + String(dateObject.getMonth() + 1).padStart(2, "0");
     const adminCacheKey = `${userId}-${dateObject.getFullYear()}-${String(dateObject.getMonth() + 1).padStart(2, "0")}`;
@@ -170,11 +247,26 @@ async function renderAdminDailyRecords(dateKey, userId) {
                 externalInfo.className = 'daily-summary mt-4 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg';
 
                 let hoursHtml = '';
+                let salaryHtml = '';
                 if (dailyRecord.hours > 0) {
                     hoursHtml = `
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             <span data-i18n="RECORD_HOURS_PREFIX">當日工作時數：</span>
                             ${dailyRecord.hours} 小時
+                        </p>
+                    `;
+                    // 計算當日薪資 (使用 currentManagingEmployee.salary，假設已從員工選擇事件中設定)
+                    const monthlySalary = currentManagingEmployee.salary || 28590; // 預設為2025最低月薪，如果無資料
+                    const hourlyRate = (monthlySalary / 240).toFixed(2); // 等效時薪
+                    const { dailySalary, calculation } = calculateDailySalary(dailyRecord.hours, hourlyRate); // 使用新函式
+
+                    salaryHtml = `
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            <span data-i18n="RECORD_SALARY_PREFIX">當日薪資：</span>
+                            ${dailySalary.toFixed(2)} NTD
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1 italic">
+                            計算式: ${calculation}
                         </p>
                     `;
                 }
@@ -185,8 +277,8 @@ async function renderAdminDailyRecords(dateKey, userId) {
                         ${t(dailyRecord.reason)}
                     </p>
                     ${hoursHtml}
+                    ${salaryHtml}
                 `;
-
                 // append 到 adminDailyRecordsList 後面
                 adminDailyRecordsList.parentNode.appendChild(externalInfo);
                 renderTranslations(externalInfo);  // 渲染翻譯
@@ -403,6 +495,8 @@ function initAdminEvents() {
     adminSelectEmployee.addEventListener('change', async (e) => {
 
         adminSelectedUserId = e.target.value; // 來自 state.js
+        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
+
         if (adminSelectedUserId) {
             adminEmployeeCalendarCard.style.display = 'block';
             await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
@@ -455,7 +549,7 @@ function initAdminEvents() {
                 let seniorityText = '';
                 if (years > 0) seniorityText += `${years} ${t("YEAR") || '年'}`;
                 // 只有當月份 > 0 或者總年資不到一年時才顯示月份
-                if (months > 0 || (years === 0 && months === 0)) seniorityText += `${months} ${'個月'}`;
+                if (months > 0 || (years === 0 && months === 0)) seniorityText += `${months} ${t("MONTH") || '個月'}`;
 
                 mgmtEmployeeSeniority.textContent = seniorityText.trim() || 'N/A';
             } else {

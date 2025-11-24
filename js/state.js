@@ -135,3 +135,8 @@ const requireGpsCheckbox = document.getElementById('require-gps');
 const allowManualAdjustCheckbox = document.getElementById('allow-manual-adjust');
 const formLeaveSalary = document.getElementById('form-leave-salary');
 const formPunchPolicy = document.getElementById('form-punch-policy');
+
+//計算薪水
+// state.js
+let adminMonthlySalaryDisplay;  // 用於顯示月薪資摘要的 DOM 元素
+let currentManagingEmployee;
