@@ -79,41 +79,156 @@ async function renderAdminCalendar(userId, date) {
             console.error(err);
         }
     }
+
+    // 在 renderAdminCalendar(...) 的日曆格子填充完成後加入：
+    _addWeekdayLabelsToAdminCalendar(year, month);
 }
 
 /**
- * 計算並顯示月總薪資 (包含計算過程)
- * @param {Array} records - 月份的所有每日記錄
+ * 計算並顯示月總薪資 (包含計算過程，特別標註扣除的休息時間)
+ * @param {Array} records - 月份的所有每日記錄 (要求包含 punchInTime, punchOutTime 欄位)
  */
 function calculateAndDisplayMonthlySalary(records) {
-    const monthlySalary = currentManagingEmployee.salary || 28590; // 預設為2025最低月薪
-    const hourlyRate = (monthlySalary / 240).toFixed(2); // 等效時薪
+    // 檢查全域變數是否存在，如果不存在，提供合理的預設值
+    const monthlySalary = (typeof currentManagingEmployee !== 'undefined' && currentManagingEmployee.salary)
+        ? currentManagingEmployee.salary
+        : 28590; // 預設為2025最低月薪
+
+    const hourlyRate = (monthlySalary / 240); // 確保是數字進行計算
+    const hourlyRateDisplay = hourlyRate.toFixed(2);
+
     let totalMonthlySalary = 0;
     let calculationDetails = []; // 儲存每日計算細節
 
     records.forEach(dailyRecord => {
-        if (dailyRecord.hours > 0) {
-            const { dailySalary, calculation } = calculateDailySalary(dailyRecord.hours, hourlyRate);
-            totalMonthlySalary += dailySalary;
-            calculationDetails.push(`日期 ${dailyRecord.date}: ${calculation}`);
+        // 確保有打卡時間欄位才計算
+        if (dailyRecord.punchInTime && dailyRecord.punchOutTime) {
+
+            // 🚨 步驟 1：使用新函數計算淨工時與扣除分鐘數
+            const {
+                dailySalary,
+                calculation,
+                effectiveHours,
+                totalBreakMinutes
+            } = calculateDailySalaryFromPunches(
+                dailyRecord.punchInTime,
+                dailyRecord.punchOutTime,
+                hourlyRate
+            );
+
+            // 格式化扣除的休息時間
+            const breakHoursDisplay = (totalBreakMinutes / 60).toFixed(2);
+
+            if (effectiveHours > 0) {
+                totalMonthlySalary += dailySalary;
+
+                const effectiveHoursFixed = effectiveHours.toFixed(2);
+                calculationDetails.push(
+                    `日期 ${dailyRecord.date} (${dailyRecord.punchInTime}-${dailyRecord.punchOutTime}): 
+                     - 休息扣除 ${breakHoursDisplay}h (淨工時 ${effectiveHoursFixed}h)
+                     - 日薪計算: ${calculation}`
+                );
+            } else if (totalBreakMinutes > 0) {
+                // 記錄打卡了，但全被休息時間扣除的情況
+                calculationDetails.push(
+                    `日期 ${dailyRecord.date} (${dailyRecord.punchInTime}-${dailyRecord.punchOutTime}): 
+                     - 休息扣除 ${breakHoursDisplay}h (淨工時 0h, 無薪資)`
+                );
+            }
         }
     });
 
     totalMonthlySalary = totalMonthlySalary.toFixed(2);
 
-    // 顯示月總薪資 (假設有 adminMonthlySalaryDisplay 元素，在 state.js 中宣告)
-    adminMonthlySalaryDisplay.innerHTML = `
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-            <span data-i18n="MONTHLY_SALARY_PREFIX">本月總薪資：</span>
-            ${totalMonthlySalary} NTD
-        </p>
-        <p class="text-xs text-gray-400 mt-1 italic">
-            計算過程: ${calculationDetails.join('; ')}
-        </p>
-    `;
-    renderTranslations(adminMonthlySalaryDisplay);
-}
+    // 顯示月總薪資
+    const displayElement = document.getElementById('admin-monthly-salary-display');
+    const targetDisplay = (typeof adminMonthlySalaryDisplay !== 'undefined') ? adminMonthlySalaryDisplay : displayElement;
 
+    if (targetDisplay) {
+        targetDisplay.innerHTML = `
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                <span data-i18n="MONTHLY_SALARY_PREFIX">本月總薪資：</span>
+                <span class="text-lg font-bold text-indigo-600 dark:text-indigo-400">${totalMonthlySalary} NTD</span>
+            </p>
+            <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">等效時薪：</span> ${hourlyRateDisplay} NTD/小時
+            </p>
+            <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <summary>計算細節 (點擊展開)</summary>
+                <ul class="list-disc ml-4 mt-1 space-y-0.5">
+                    ${calculationDetails.map(detail => `<li>${detail}</li>`).join('')}
+                </ul>
+            </details>
+        `;
+        // 如果您的 i18n 系統需要
+        if (typeof renderTranslations === 'function') {
+            renderTranslations(targetDisplay);
+        }
+    }
+}
+/**
+ * 根據上班與下班時間，計算扣除休息時間後的有效工時 (小時)，並回傳被扣除的總分鐘數。
+ *
+ * @param {string} punchInTime - 上班打卡時間，格式 'HH:MM' (例如 '08:30')
+ * @param {string} punchOutTime - 下班打卡時間，格式 'HH:MM' (例如 '17:30')
+ * @returns {Object} { effectiveHours: number, totalBreakMinutes: number }
+ */
+function calculateEffectiveHours(punchInTime, punchOutTime) {
+    // 休息時間定義 (格式: [開始時間, 結束時間]，皆為 'HH:MM')
+    const breakTimes = [
+        ['07:00', '08:00'], // 早餐
+        ['12:00', '13:00'], // 午餐
+        ['18:00', '19:00']  // 晚餐
+    ];
+
+    // 輔助函數：將 'HH:MM' 轉換為當天的分鐘數
+    const timeToMinutes = (time) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+
+    // 輔助函數：計算兩個時間段的重疊分鐘數
+    const getOverlapMinutes = (start1, end1, start2, end2) => {
+        const latestStart = Math.max(start1, start2);
+        const earliestEnd = Math.min(end1, end2);
+        return Math.max(0, earliestEnd - latestStart);
+    };
+
+    const inMinutes = timeToMinutes(punchInTime);
+    const outMinutes = timeToMinutes(punchOutTime);
+
+    // 無效打卡 (下班早於上班)，返回 0
+    if (outMinutes <= inMinutes) {
+        return { effectiveHours: 0, totalBreakMinutes: 0 };
+    }
+
+    let totalDurationMinutes = outMinutes - inMinutes; // 總分鐘數
+    let totalBreakMinutes = 0; // 應扣除的休息分鐘數
+
+    // 計算重疊的休息時間
+    breakTimes.forEach(breakPeriod => {
+        const [breakStart, breakEnd] = breakPeriod;
+        const breakStartMinutes = timeToMinutes(breakStart);
+        const breakEndMinutes = timeToMinutes(breakEnd);
+
+        const overlap = getOverlapMinutes(
+            inMinutes,
+            outMinutes,
+            breakStartMinutes,
+            breakEndMinutes
+        );
+
+        totalBreakMinutes += overlap;
+    });
+
+    // 實際應計薪的總分鐘數
+    const effectiveMinutes = totalDurationMinutes - totalBreakMinutes;
+
+    // 轉換為小時並保留兩位小數
+    const effectiveHours = parseFloat(Math.max(0, effectiveMinutes / 60).toFixed(2));
+
+    return { effectiveHours, totalBreakMinutes }; // 回傳物件
+}
 /**
  * 計算單日薪資 (考慮加班倍率)
  * @param {number} hours - 當日總時數
@@ -138,23 +253,54 @@ function calculateDailySalary(hours, hourlyRate) {
         // 加班前2小時: 1.33倍
         if (overtimeHours > 0) {
             const overtime1 = Math.min(overtimeHours, 2);
-            const overtimePay1 = hourlyRate * overtime1 * 1.33;
+            const overtimePay1 = hourlyRate * overtime1 * 4 / 3;
             dailySalary += overtimePay1;
-            calculation += `${hourlyRate} × ${overtime1} × 1.33 (前2小時加班) = ${overtimePay1.toFixed(2)}; `;
+            calculation += `${hourlyRate} × ${overtime1} × 4/3 (前2小時加班) = ${overtimePay1.toFixed(2)}; `;
             overtimeHours -= overtime1;
         }
         // 加班後續小時: 1.66倍
         if (overtimeHours > 0) {
-            const overtimePay2 = hourlyRate * overtimeHours * 1.66;
+            const overtimePay2 = hourlyRate * overtimeHours * 5 / 3;
             dailySalary += overtimePay2;
-            calculation += `${hourlyRate} × ${overtimeHours} × 1.66 (後續加班) = ${overtimePay2.toFixed(2)}; `;
+            calculation += `${hourlyRate} × ${overtimeHours} × 5/3 (後續加班) = ${overtimePay2.toFixed(2)}; `;
         }
         calculation += `總計 = ${dailySalary.toFixed(2)}`;
     }
 
     return { dailySalary, calculation };
 }
+/**
+ * 🆕 專門用於處理「原始打卡時間」並計算單日薪資的函式。
+ * 此函式確保計算前會扣除休息時間。
+ *
+ * @param {string} punchInTime - 上班打卡時間，格式 'HH:MM'
+ * @param {string} punchOutTime - 下班打卡時間，格式 'HH:MM'
+ * @param {number} hourlyRate - 等效時薪 (數字)
+ * @returns {Object} 包含所有細節的物件：{ dailySalary, calculation, effectiveHours, totalBreakMinutes }
+ */
+function calculateDailySalaryFromPunches(punchInTime, punchOutTime, hourlyRate) {
+    // 1. 計算淨工時與休息扣除時間
+    const { effectiveHours, totalBreakMinutes } = calculateEffectiveHours(punchInTime, punchOutTime);
 
+    let result = {
+        dailySalary: 0,
+        calculation: '',
+        effectiveHours: effectiveHours,
+        totalBreakMinutes: totalBreakMinutes
+    };
+
+    if (effectiveHours > 0) {
+        // 2. 呼叫核心函式計算薪資 (傳入已確認的淨工時)
+        const salaryResult = calculateDailySalary(effectiveHours, hourlyRate);
+
+        result.dailySalary = salaryResult.dailySalary;
+        result.calculation = salaryResult.calculation;
+    }
+
+    // 如果沒有淨工時 (effectiveHours === 0)，則 dailySalary 會是 0，calculation 會是空字串。
+
+    return result;
+}
 /**
  * 渲染管理員視圖中，某一天點擊後的打卡紀錄
  * @param {string} dateKey - 點擊的日期 (YYYY-MM-DD)
@@ -257,18 +403,52 @@ async function renderAdminDailyRecords(dateKey, userId) {
                     `;
                     // 計算當日薪資 (使用 currentManagingEmployee.salary，假設已從員工選擇事件中設定)
                     const monthlySalary = currentManagingEmployee.salary || 28590; // 預設為2025最低月薪，如果無資料
-                    const hourlyRate = (monthlySalary / 240).toFixed(2); // 等效時薪
-                    const { dailySalary, calculation } = calculateDailySalary(dailyRecord.hours, hourlyRate); // 使用新函式
+                    const hourlyRate = (monthlySalary / 240); // 確保是數字進行計算，用於傳遞給底層函式
+                    const hourlyRateDisplay = hourlyRate.toFixed(2); // 用於顯示
 
-                    salaryHtml = `
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                            <span data-i18n="RECORD_SALARY_PREFIX">當日薪資：</span>
-                            ${dailySalary.toFixed(2)} NTD
-                        </p>
-                        <p class="text-xs text-gray-400 mt-1 italic">
-                            計算式: ${calculation}
-                        </p>
-                    `;
+                    // 🚨 關鍵變動：使用新的包裝函式來計算所有細節
+                    const {
+                        dailySalary,
+                        calculation,
+                        effectiveHours,
+                        totalBreakMinutes
+                    } = calculateDailySalaryFromPunches(
+                        dailyRecord.punchInTime,
+                        dailyRecord.punchOutTime,
+                        hourlyRate
+                    );
+
+                    const breakHoursDisplay = (totalBreakMinutes / 60).toFixed(2);
+                    const effectiveHoursFixed = effectiveHours.toFixed(2);
+                    const dailySalaryFixed = dailySalary.toFixed(2); // 確保薪資顯示兩位小數
+
+                    if (effectiveHours > 0) {
+                        salaryHtml = `
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            <span data-i18n="RECORD_SALARY_PREFIX">當日薪資：</span>
+            <span class="font-bold text-indigo-600 dark:text-indigo-400">${dailySalaryFixed} NTD</span>
+        </p>
+        <details class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <summary>薪資計算細節</summary>
+            <ul class="list-disc ml-4 mt-1 space-y-0.5">
+                <li><span data-i18n="HOURLY_RATE_CALCULATED">等效時薪：</span> ${hourlyRateDisplay} NTD/小時</li>
+                <li><span data-i18n="BREAK_DEDUCTION">休息扣除：</span> ${breakHoursDisplay}h (淨工時 ${effectiveHoursFixed}h)</li>
+                <li><span data-i18n="SALARY_CALCULATION">日薪計算式：</span> ${calculation}</li>
+            </ul>
+        </details>
+    `;
+                    } else {
+                        // 處理淨工時為 0 但有打卡的情況
+                        salaryHtml = `
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            <span data-i18n="RECORD_SALARY_PREFIX">當日薪資：</span>
+            0.00 NTD
+        </p>
+        <p class="text-xs text-red-400 mt-1 italic">
+            <span data-i18n="NO_EFFECTIVE_HOURS">淨工時為 0。</span> 休息扣除 ${breakHoursDisplay}h。
+        </p>
+    `;
+                    }
                 }
 
                 externalInfo.innerHTML = `
@@ -289,6 +469,47 @@ async function renderAdminDailyRecords(dateKey, userId) {
         adminRecordsLoading.style.display = 'none';
     }
 }
+
+/**
+ * 在管理員日曆上方顯示一列星期標頭（與月份檢視相同）
+ * @param {number} year - 年份
+ * @param {number} month - 月份 (0-11)
+ */
+function _addWeekdayLabelsToAdminCalendar(year, month) {
+    const grid = document.getElementById('admin-calendar-grid');
+    if (!grid) return;
+    const parent = grid.parentNode;
+    if (!parent) return;
+
+    // 如果已經存在 header，就更新，否則建立一個放在 grid 之前
+    let header = parent.querySelector('.admin-weekday-header');
+    if (!header) {
+        header = document.createElement('div');
+        header.className = 'admin-weekday-header grid grid-cols-7 gap-1 mb-2 text-center text-sm text-gray-600 dark:text-gray-300';
+        parent.insertBefore(header, grid);
+    } else {
+        header.innerHTML = '';
+    }
+
+    const lang = (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'zh-TW';
+    const fallbackWeek = ['日', '一', '二', '三', '四', '五', '六'];
+
+    // 使用固定週起始日期 (2021-08-01 為週日)，用 toLocaleDateString 取得短週名稱
+    for (let i = 0; i < 7; i++) {
+        let label = '';
+        try {
+            const d = new Date(Date.UTC(2021, 7, 1 + i)); // 2021-08-01 ~ Sun
+            label = d.toLocaleDateString(lang, { weekday: 'short' });
+        } catch (e) {
+            label = `週${fallbackWeek[i]}`;
+        }
+        const cell = document.createElement('div');
+        cell.className = 'py-1';
+        cell.textContent = label;
+        header.appendChild(cell);
+    }
+}
+
 // #endregion
 
 // ===================================
@@ -657,6 +878,10 @@ function initAdminEvents() {
             console.error(err);
         }
     });
+
+    // 註冊月薪收折與匯出功能（確保 DOM 元素已存在）
+    setupAdminSalaryToggle && setupAdminSalaryToggle();
+    setupAdminExport();
 }
 
 /**
@@ -746,5 +971,337 @@ const switchAdminSubTab = (subTabId) => {
         console.log('載入員工帳號管理介面...');
     }
 };
+// #endregion
+// ===================================
+
+// ===================================
+// #region 6. 管理員月薪摘要收折邏輯
+// ===================================
+/**
+ * 設置管理員月薪摘要的收合/展開功能。
+ */
+function setupAdminSalaryToggle() {
+    const btn = document.getElementById('toggle-admin-salary-btn');
+    const panel = document.getElementById('admin-monthly-salary-display');
+    if (!btn || !panel) return;
+
+    // 初始化狀態（預設收折）
+    panel.style.display = 'none';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.textContent = '顯示月薪摘要 ▼';
+
+    btn.addEventListener('click', () => {
+        const isHidden = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = isHidden ? 'block' : 'none';
+        btn.setAttribute('aria-expanded', String(isHidden));
+        btn.textContent = isHidden ? '隱藏月薪摘要 ▲' : '顯示月薪摘要 ▼';
+    });
+}
+/**
+ * 設置管理員匯出月曆為 Excel 的功能
+ */
+function setupAdminExport() {
+    const btn = document.getElementById('export-admin-month-excel-btn');
+    if (!btn) return;
+
+    const pad = n => String(n).padStart(2, '0');
+
+    function tryParseHoursFromTimes(inTime, outTime, dateStr) {
+        // 保留舊的兼容性實作（仍可用）
+        if (!inTime || !outTime) return null;
+        try {
+            const base = new Date(dateStr);
+            if (isNaN(base.getTime())) base.setFullYear(new Date().getFullYear());
+            const parse = t => {
+                if (!t) return null;
+                if (/^\d{1,2}:\d{2}$/.test(t)) {
+                    const [hh, mm] = t.split(':').map(Number);
+                    const d = new Date(base);
+                    d.setHours(hh, mm, 0, 0);
+                    return d;
+                }
+                const d = new Date(t);
+                return isNaN(d.getTime()) ? null : d;
+            };
+            const a = parse(inTime);
+            const b = parse(outTime);
+            if (!a || !b) return null;
+            const diffH = (b - a) / 3600000;
+            return diffH >= 0 ? Number(diffH.toFixed(2)) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    btn.addEventListener('click', async () => {
+        const selectEl = document.getElementById('admin-select-employee') || document.getElementById('admin-select-employee-mgmt');
+        const userId = selectEl && selectEl.value ? selectEl.value : (currentManagingEmployee && currentManagingEmployee.userId);
+        if (!userId) {
+            alert('請先選擇員工');
+            return;
+        }
+
+        // 解析目前顯示的月份
+        const monthText = (adminCurrentMonthDisplay && adminCurrentMonthDisplay.textContent) ? adminCurrentMonthDisplay.textContent.trim() : '';
+        let year, month;
+        const m = monthText.match(/(\d{4}).*?(\d{1,2})/);
+        if (m) {
+            year = parseInt(m[1], 10);
+            month = parseInt(m[2], 10) - 1;
+        } else {
+            const d = new Date();
+            year = d.getFullYear();
+            month = d.getMonth();
+        }
+
+        const monthKey = `${userId}-${year}-${pad(month + 1)}`;
+        let monthData = adminMonthDataCache && adminMonthDataCache[monthKey];
+        if (!monthData) {
+            try {
+                await renderAdminCalendar(userId, new Date(year, month, 1));
+                monthData = adminMonthDataCache && adminMonthDataCache[monthKey];
+            } catch (e) {
+                console.error('載入月資料失敗', e);
+            }
+        }
+
+        if (!monthData) {
+            alert('找不到該月份的資料，請先載入該員工的月曆。');
+            return;
+        }
+
+        const records = Array.isArray(monthData) ? monthData : (monthData.records || monthData.days || monthData.dailyStatus || []);
+        // 建立以日期 key 為索引的 map，使用 normalizeDateKey
+        const recordMap = {};
+        records.forEach(r => {
+            const key = normalizeDateKey(r.date || r.dateKey || r.day || r.dayKey || '');
+            if (key) recordMap[key] = r;
+        });
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const { baseMonthly, hourlyRate } = resolveHourlyRateForExport();
+
+        const sheetRows = [
+            ['日期', '星期', '上班時間', '上班地點', '下班時間', '下班地點', '原始時數(小時)', '淨工時(小時)', '休息(小時)', '日薪(NTD)', '備註']
+        ];
+        const calcRows = [['日期', '計算過程說明', '日薪 (NTD)']];
+
+        let totalHours = 0, totalRawHours = 0, totalBreakMinutes = 0, totalSalary = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
+            const dateObj = new Date(year, month, d);
+            const weekday = dateObj.toLocaleDateString(currentLang || 'zh-TW', { weekday: 'short' });
+
+            const r = recordMap[dateKey] || null;
+            const punches = getPunchesFromRecord(r);
+            const { inPunch, outPunch } = pickInOutPunches(punches);
+
+            const inTime = inPunch ? (inPunch.time || inPunch.timeString || inPunch.clockTime || inPunch.t || inPunch.ts || '') : '';
+            const inLoc = inPunch ? (inPunch.location || inPunch.loc || inPunch.place || inPunch.geo || '') : '';
+            const outTime = outPunch ? (outPunch.time || outPunch.timeString || outPunch.clockTime || outPunch.t || outPunch.ts || '') : '';
+            const outLoc = outPunch ? (outPunch.location || outPunch.loc || outPunch.place || outPunch.geo || '') : '';
+
+            // 原始時數
+            let rawHours = 0;
+            if (r && (r.hours != null)) rawHours = Number(r.hours);
+            else if (r && (r.totalHours != null)) rawHours = Number(r.totalHours);
+            else rawHours = computeRawHoursFromPunches(inPunch, outPunch, dateKey) || 0;
+
+            // 使用 calculateDailySalaryFromPunches（包含休息扣除）或 fallback
+            let effectiveHours = 0, breakMinutes = 0, dailySalary = 0, calcDesc = '';
+            if (inTime && outTime && typeof calculateDailySalaryFromPunches === 'function') {
+                const res = calculateDailySalaryFromPunches(inTime, outTime, hourlyRate);
+                effectiveHours = Number(res.effectiveHours || 0);
+                breakMinutes = Number(res.totalBreakMinutes || 0);
+                dailySalary = Number(res.dailySalary || 0);
+                calcDesc = res.calculation || `${effectiveHours} × ${hourlyRate.toFixed(2)} = ${dailySalary.toFixed(2)}`;
+            } else {
+                effectiveHours = rawHours;
+                breakMinutes = 0;
+                if (typeof calculateDailySalary === 'function') {
+                    const rcalc = calculateDailySalary(effectiveHours, hourlyRate);
+                    dailySalary = rcalc && rcalc.dailySalary ? Number(rcalc.dailySalary) : Number((effectiveHours * hourlyRate) || 0);
+                    calcDesc = rcalc && rcalc.calculation ? rcalc.calculation : `${effectiveHours} × ${hourlyRate.toFixed(2)} = ${dailySalary.toFixed(2)}`;
+                } else {
+                    dailySalary = effectiveHours * hourlyRate;
+                    calcDesc = `${effectiveHours} × ${hourlyRate.toFixed(2)} = ${dailySalary.toFixed(2)}`;
+                }
+            }
+
+            const note = r ? (r.note || r.remark || r.comment || '') : '';
+
+            sheetRows.push([
+                dateKey, weekday, inTime, inLoc, outTime, outLoc,
+                Number(rawHours.toFixed ? rawHours.toFixed(2) : rawHours),
+                Number(effectiveHours.toFixed(2)),
+                Number((breakMinutes / 60).toFixed(2)),
+                Number(dailySalary.toFixed(2)),
+                note
+            ]);
+            calcRows.push([dateKey, calcDesc, Number(dailySalary.toFixed(2))]);
+
+            totalRawHours += Number(rawHours || 0);
+            totalHours += Number(effectiveHours || 0);
+            totalBreakMinutes += Number(breakMinutes || 0);
+            totalSalary += Number(dailySalary || 0);
+        }
+
+        const summaryRows = [
+            ['員工', (currentManagingEmployee && currentManagingEmployee.name) || userId],
+            ['年度', year],
+            ['月份', pad(month + 1)],
+            ['基本薪資 (NTD/月)', baseMonthly],
+            ['時薪 (NTD/小時)', Number(hourlyRate.toFixed(4))],
+            ['總原始時數 (小時)', Number(totalRawHours.toFixed(2))],
+            ['總淨工時 (小時)', Number(totalHours.toFixed(2))],
+            ['總休息時間 (小時)', Number((totalBreakMinutes / 60).toFixed(2))],
+            ['總薪資 (NTD)', Number(totalSalary.toFixed(2))]
+        ];
+
+        try {
+            const ws1 = XLSX.utils.aoa_to_sheet(sheetRows);
+            const ws2 = XLSX.utils.aoa_to_sheet(calcRows);
+            const ws3 = XLSX.utils.aoa_to_sheet(summaryRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws1, '月曆');
+            XLSX.utils.book_append_sheet(wb, ws2, '計算過程');
+            XLSX.utils.book_append_sheet(wb, ws3, '總結');
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+            // 檔名使用員工姓名或 userId（簡單過濾）
+            let employeeName = (currentManagingEmployee && currentManagingEmployee.name) || '';
+            if (!employeeName && Array.isArray(allEmployeeList)) {
+                const found = allEmployeeList.find(e => e.userId === userId);
+                if (found) employeeName = found.name || '';
+            }
+            if (!employeeName) employeeName = userId ? userId.slice(0, 8) : 'unknown';
+            employeeName = String(employeeName).replace(/[\/\\:\*\?"<>\|]/g, '').replace(/\s+/g, '_');
+
+            const filename = `${employeeName}-${year}-${pad(month + 1)}.xlsx`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Excel 匯出失敗', err);
+            alert('匯出失敗，請看 console 取得詳細錯誤訊息。');
+        }
+    });
+}
+// #endregion
+// ===================================
+
+/* ===== 新增：共用 Helper 函式，放在檔案靠近開頭（或 renderAdminCalendar 之前） ===== */
+
+/**
+ * 將各種可能的日期表示正規化為 YYYY-MM-DD
+ * @param {string|number} raw
+ * @returns {string} YYYY-MM-DD 或空字串
+ */
+function normalizeDateKey(raw) {
+    if (!raw && raw !== 0) return '';
+    let s = String(raw);
+    // 已經是 YYYY-M-D 或 YYYY-MM-DD
+    const m1 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m1) {
+        const y = m1[1], mo = String(m1[2]).padStart(2, '0'), d = String(m1[3]).padStart(2, '0');
+        return `${y}-${mo}-${d}`;
+    }
+    // YYYYMMDD
+    const m2 = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+    // 嘗試用 Date 解析
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        const y = dt.getFullYear(), mo = String(dt.getMonth() + 1).padStart(2, '0'), d = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${mo}-${d}`;
+    }
+    return '';
+}
+
+/**
+ * 從 record 物件取出打卡陣列 (容錯)
+ */
+function getPunchesFromRecord(r) {
+    if (!r) return [];
+    if (Array.isArray(r.record)) return r.record;
+    if (Array.isArray(r.punches)) return r.punches;
+    if (Array.isArray(r.dailyPunches)) return r.dailyPunches;
+    if (Array.isArray(r.records)) return r.records;
+    return [];
+}
+
+/**
+ * 從 punches 陣列挑出最合理的上班(第一個 IN)與下班(最後一個 OUT)
+ * @param {Array} punches
+ * @returns {{inPunch:object|null, outPunch:object|null}}
+ */
+function pickInOutPunches(punches) {
+    let inPunch = null, outPunch = null;
+    if (!Array.isArray(punches) || punches.length === 0) return { inPunch, outPunch };
+
+    const isInType = t => /上班|上班打卡|IN|in|clock_in|checkin|start/i.test(String(t || ''));
+    const isOutType = t => /下班|下班打卡|OUT|out|clock_out|checkout|end|finish/i.test(String(t || ''));
+
+    for (let i = 0; i < punches.length; i++) {
+        const p = punches[i];
+        if (!inPunch && (isInType(p.type || p.label || p.tag) || isInType(p.mode || p.action))) inPunch = p;
+    }
+    for (let i = punches.length - 1; i >= 0; i--) {
+        const p = punches[i];
+        if (!outPunch && (isOutType(p.type || p.label || p.tag) || isOutType(p.mode || p.action))) outPunch = p;
+    }
+    if (!inPunch) inPunch = punches[0];
+    if (!outPunch) outPunch = punches[punches.length - 1];
+    return { inPunch, outPunch };
+}
+
+/**
+ * 將時間字串（HH:MM 或 ISO）轉為當日 Date（使用 dateKey 作 base）
+ */
+function parseTimeToDate(timeStr, dateKey) {
+    if (!timeStr) return null;
+    // 如果是 HH:MM
+    const hm = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (hm && dateKey) {
+        const [y, m, d] = dateKey.split('-').map(Number);
+        const dt = new Date(y, m - 1, d, Number(hm[1]), Number(hm[2]), 0, 0);
+        return dt;
+    }
+    // 嘗試直接解析
+    const dt2 = new Date(timeStr);
+    return isNaN(dt2.getTime()) ? null : dt2;
+}
+
+/**
+ * 由 in/out 打卡物件與 dateKey 計算原始時數 (小時，保留兩位)
+ */
+function computeRawHoursFromPunches(inPunch, outPunch, dateKey) {
+    const inTimeStr = inPunch && (inPunch.time || inPunch.timeString || inPunch.clockTime || inPunch.t || inPunch.ts) || '';
+    const outTimeStr = outPunch && (outPunch.time || outPunch.timeString || outPunch.clockTime || outPunch.t || outPunch.ts) || '';
+    const a = parseTimeToDate(inTimeStr, dateKey);
+    const b = parseTimeToDate(outTimeStr, dateKey);
+    if (!a || !b) return 0;
+    const diff = (b - a) / 3600000;
+    return diff >= 0 ? Number(diff.toFixed(2)) : 0;
+}
+
+/**
+ * 取得時薪（優先 employee.salary，次優 UI 輸入，否則回預設）
+ */
+function resolveHourlyRateForExport() {
+    const empSalary = (currentManagingEmployee && Number(currentManagingEmployee.salary)) || 0;
+    const basicSalaryInputEl = document.getElementById('basic-salary') || document.getElementById('basicSalary') || null;
+    const inputSalary = basicSalaryInputEl ? Number(basicSalaryInputEl.value || 0) : 0;
+    const base = empSalary || inputSalary || 28950;
+    const standardMonthHours = 240;
+    return { baseMonthly: base, hourlyRate: base > 0 ? (base / standardMonthHours) : 0 };
+}
 // #endregion
 // ===================================

@@ -56,7 +56,7 @@ async function ensureLogin() {
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('user-header').style.display = 'flex';
                     document.getElementById('main-app').style.display = 'block';
-
+                    initLocationMap();
                     // 檢查異常打卡 (在 checkSession 成功後執行)
                     checkAbnormal();
 
@@ -233,7 +233,7 @@ function bindEvents() {
         const currentTab = document.querySelector('.active');
         const currentTabId = currentTab ? currentTab.id : null;
 
-        if (currentTabId === 'location-view') {
+        if (currentTabId === 'location-view' || currentTabId === 'dashboard-view') {
             initLocationMap(true); // 來自 location.js
         }
         // 這裡可以根據需要重新渲染當前視圖，確保所有 i18n 元素被更新
@@ -304,3 +304,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 // #endregion
+/* Floating LINE 按鈕行為：長按隱藏、點擊開啟、雙擊顯示（會使用 data-line-url）
+   改成在 DOMContentLoaded 後綁定，確保按鈕已存在於 DOM 中 */
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('floating-line-btn');
+    if (!btn) return;
+
+    const LINE_URL = btn.dataset.lineUrl || 'https://lin.ee/9j5mzVH';
+    const HIDE_KEY = 'floatingLineBtnHidden_v1';
+    const LONGPRESS_MS = 800;
+    let longPressTimer = null;
+
+    // 初始化隱藏狀態
+    if (localStorage.getItem(HIDE_KEY) === '1') {
+        btn.classList.add('hidden');
+    }
+
+    // 點擊打開連結（若為長按過程則忽略 click）
+    btn.addEventListener('click', (e) => {
+        if (longPressTimer) return;
+        window.open(LINE_URL, '_blank');
+    });
+
+    function startLongPress() {
+        if (longPressTimer) clearTimeout(longPressTimer);
+        longPressTimer = setTimeout(() => {
+            btn.classList.add('hidden');
+            localStorage.setItem(HIDE_KEY, '1');
+            longPressTimer = null;
+        }, LONGPRESS_MS);
+    }
+    function cancelLongPress() {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    // 支援滑鼠與觸控
+    btn.addEventListener('mousedown', startLongPress);
+    btn.addEventListener('touchstart', startLongPress, { passive: true });
+    btn.addEventListener('mouseup', cancelLongPress);
+    btn.addEventListener('mouseleave', cancelLongPress);
+    btn.addEventListener('touchend', cancelLongPress);
+    btn.addEventListener('touchcancel', cancelLongPress);
+
+    // 雙擊快速顯示並清除儲存的隱藏狀態（方便測試）
+    btn.addEventListener('dblclick', () => {
+        btn.classList.remove('hidden');
+        localStorage.removeItem(HIDE_KEY);
+    });
+})();

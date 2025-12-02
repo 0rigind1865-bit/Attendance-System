@@ -23,7 +23,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
 <html lang="zh-Hant">
 
 <head>
-    <link rel="icon" href="/Attendance-System/0rigin.png" type="image/x-icon">
+    <link rel="icon" href="/0rigin.png" type="image/x-icon">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title data-i18n="APP_TITLE">APP_TITLE</title>
     <link rel="stylesheet" href="./dist/compiled.css">
@@ -117,9 +117,9 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
 
         <!-- Login Section -->
         <section id="login-section" class="text-center p-8 card fade-in">
-            <img src="/Attendance-System/0rigin.png" alt="打卡系統橫幅圖" class="main-image">
+            <img src="/0rigin.png" alt="打卡系統橫幅圖" class="main-image">
             <h1 id="appTitle" data-i18n="SUBTITLE_LOGIN" class="text-2xl font-bold text-gray-800 mb-2 dark:text-white">
-                歡迎零點考勤系統</h1>
+                歡迎文輝考勤系統</h1>
             <p class="text-gray-600 mb-6" data-i18n="LOGIN_INFO" id="status">請點擊登入以繼續。</p>
             <div id="login" class="space-y-4">
                 <button id="login-btn" data-i18n="BTN_LOGOIN" class="w-full py-3 px-4 rounded-lg font-bold btn-primary"
@@ -138,7 +138,8 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                 <button id="tab-Form-btn" data-i18n="TAB_FORM"
                     class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">表單申請</button>
                 <button id="tab-location-btn" data-i18n="TAB_LOCATION"
-                    class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">定位</button>
+                    class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200"
+                    style="display: none">定位</button>
                 <button id="tab-admin-btn" data-i18n="TAB_ADMIN"
                     class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200" style="display: none"
                     ;>管理員</button>
@@ -151,12 +152,44 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                         打卡專區
                     </h2>
                     <p data-i18n="PUNCH_SECTION_DESCRIPTION" class="text-gray-500 mb-4">請點擊下方按鈕進行上班或下班打卡。</p>
+
+                    <!-- 將地圖與定位狀態移到按鈕上方 -->
+                    <div class="mt-4 mb-6">
+                        <div id="map-container"
+                            class="w-full h-64 rounded-lg mb-4 bg-gray-200 flex items-center justify-center text-gray-500">
+                            <div id="map-loading-text">
+                                <span data-i18n="MAP_LOADING">正在載入地圖...</span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4 dark:bg-gray-700 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-white">
+                                <strong data-i18n="LOCATION_STATUS_LABEL">狀態：</strong>
+                                <span id="location-status" ata-i18n="LOCATION_STATUS_PENDING">未偵測</span>
+                            </p>
+                            <p class="text-sm text-gray-600">
+                                <strong data-i18n="COORDINATES_LABEL">經緯度：</strong>
+                                <span id="location-coords" data-i18n="COORDINATES_UNKNOWN">未知</span>
+                            </p>
+                        </div>
+                    </div>
+
                     <div id="punch-actions" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <button id="punch-in-btn" data-i18n="PUNCH_IN_LABEL"
                             class="w-full py-3 px-4 rounded-lg font-bold btn-primary">上班打卡</button>
                         <button id="punch-out-btn" data-i18n="PUNCH_OUT_LABEL"
                             class="w-full py-3 px-4 rounded-lg font-bold btn-secondary">下班打卡</button>
                     </div>
+                    <a href="https://lin.ee/9j5mzVH" target="_blank"
+                        class="p-4 flex items-center justify-center font-bold text-white rounded-lg shadow-lg transition duration-150 mt-6"
+                        style="
+                            text-decoration: none; 
+                            background-color: #00B900; /* LINE 較標準的綠色 */
+                            box-shadow: 0 4px #009900; /* 增加立體感 */
+                            display: none;
+                        ">
+                        <span class="mr-2 text-xl">💬</span>
+                        加入員工 LINE 頻道，掌握最新公告！
+                    </a>
                 </div>
 
                 <div id="abnormal-records-section" class="card p-6" style="display: none;">
@@ -214,7 +247,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                         class="text-xl font-bold text-gray-800 mb-1 dark:text-white mb-1">當前位置</h2>
                     <p data-i18n="CURRENT_LOCATION_DESCRIPTION" class="text-gray-500 mb-4">系統將透過 GPS 偵測您的位置。</p>
 
-                    <div id="map-container"
+                    <!-- <div id="map-container"
                         class="w-full h-64 rounded-lg mb-4 bg-gray-200 flex items-center justify-center text-gray-500">
                         <div id="map-loading-text">
                             <span data-i18n="MAP_LOADING">正在載入地圖...</span>
@@ -229,7 +262,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                             <strong data-i18n="COORDINATES_LABEL">經緯度：</strong>
                             <span id="location-coords" data-i18n="COORDINATES_UNKNOWN">未知</span>
                         </p>
-                    </div>
+                    </div> -->
                 </div>
             </section>
             <!-- Form View -->
@@ -495,8 +528,24 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
 
                             <p id="admin-calendar-info" class="text-sm text-gray-500 mt-4 dark:text-gray-400"></p>
                             <!-- 在管理員日曆 HTML 中，放在日曆格子之後 -->
+                            <button id="export-admin-month-excel-btn" class="mt-2 w-full py-2 px-3 rounded-lg
+                                       bg-green-100 text-green-800
+                                       dark:bg-green-600 dark:text-white
+                                       border border-green-200 dark:border-green-700
+                                       text-sm font-medium shadow-sm
+                                       hover:bg-green-200 dark:hover:bg-green-700
+                                       focus:outline-none focus:ring-2 focus:ring-green-400">
+                                匯出月曆 Excel
+                            </button>
+                            <button id="toggle-admin-salary-btn"
+                                class="mt-4 mb-2 w-full text-left px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm font-medium"
+                                aria-expanded="false" type="button">
+                                顯示月薪摘要 ▼
+                            </button>
                             <div id="admin-monthly-salary-display"
-                                class="mt-4 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg"></div>
+                                class="mt-2 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg" style="display: none;">
+                            </div>
+
                         </div>
 
                         <div id="admin-daily-records-card" class="card p-6 mt-6" style="display: none;">
@@ -616,8 +665,15 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
     <script src="js/punch.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/location.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="js/admin.js"></script>
 
+    <!-- Floating LINE button (樣式與行為移到 compiled.css / js/app.js) -->
+    <button id="floating-line-btn" class="floating-line-btn" aria-label="加入員工 LINE 頻道" title="長按可隱藏"
+        data-line-url="https://lin.ee/9j5mzVH">
+        💬
+    </button>
 </body>
 
 </html>

@@ -313,3 +313,31 @@ html.dark .leaflet-control-attribution {
     /* hue-rotate(180deg)：可選，調整色調，讓藍色街道不至於變成難看的紅色 */
     filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
+
+/* 懸浮按鈕樣式 */
+#floating-line-btn {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9999;
+    width: 56px;
+    height: 56px;
+    border-radius: 9999px;
+    background-color: #00B900;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+}
+
+#floating-line-btn.hidden {
+    display: none !important;
+}
+
+#floating-line-btn:active {
+    transform: translateY(1px);
+}

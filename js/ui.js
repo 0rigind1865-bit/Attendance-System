@@ -364,7 +364,7 @@ const switchTab = (tabId) => {
     // 5. 根據頁籤 ID 執行特定動作
     if (tabId === 'monthly-view') {
         renderCalendar(currentMonthDate);
-    } else if (tabId === 'location-view') {
+    } else if (tabId === 'location-view' || tabId === 'dashboard-view') {
         initLocationMap(); // <-- 這行保持不變
     } else if (tabId === 'admin-view') {
         fetchAndRenderReviewRequests();
