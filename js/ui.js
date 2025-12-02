@@ -334,8 +334,8 @@ async function renderDailyRecords(dateKey) {
 
 // UI切換邏輯
 const switchTab = (tabId) => {
-    const tabs = ['dashboard-view', 'monthly-view', 'location-view', 'admin-view'];
-    const btns = ['tab-dashboard-btn', 'tab-monthly-btn', 'tab-location-btn', 'tab-admin-btn'];
+    const tabs = ['dashboard-view', 'monthly-view', 'location-view', 'Form-view', 'admin-view'];
+    const btns = ['tab-dashboard-btn', 'tab-monthly-btn', 'tab-location-btn', 'tab-Form-btn', 'tab-admin-btn'];
 
     // 1. 移除舊的 active 類別和 CSS 屬性
     tabs.forEach(id => {

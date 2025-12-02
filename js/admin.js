@@ -818,37 +818,41 @@ function initAdminEvents() {
     // 3. 設置待審核請求收合功能
     setupRequestToggle();
 
-    // 4. 地點新增功能（管理員專用）
-    getLocationBtn.addEventListener('click', () => {
-        // ... (您提供的定位邏輯) ...
-        if (!navigator.geolocation) {
-            showNotification(t("ERROR_GEOLOCATION", { msg: t('ERROR_BROWSER_NOT_SUPPORTED') }), "error");
-            return;
-        }
 
-        // 修正：使用全域變數
-        getLocationBtn.textContent = '取得中...';
-        getLocationBtn.disabled = true;
 
-        navigator.geolocation.getCurrentPosition((pos) => {
-            locationLatInput.value = pos.coords.latitude;
-            locationLngInput.value = pos.coords.longitude;
-            getLocationBtn.textContent = '已取得';
-            addLocationBtn.disabled = false;
-            showNotification("位置已成功取得！", "success");
-        }, (err) => {
-            showNotification(t("ERROR_GEOLOCATION", { msg: err.message }), "error");
-            getLocationBtn.textContent = '取得當前位置';
-            getLocationBtn.disabled = false;
+    // 若新增按鈕為 disabled 時，點擊 wrapper 顯示具體提示（未輸入名稱 / 未取得位置）
+    const addWrapper = document.getElementById('add-location-wrapper');
+    if (addWrapper) {
+        addWrapper.addEventListener('click', (e) => {
+            const addBtnEl = document.getElementById('add-location-btn');
+            if (!addBtnEl) return;
+            if (!addBtnEl.disabled) return;
+
+            const nameEl = document.getElementById('location-name');
+            const latEl = document.getElementById('location-lat');
+            const lngEl = document.getElementById('location-lng');
+
+            let msg = '';
+            if (!nameEl || !nameEl.value.trim()) {
+                msg = (typeof t === 'function') ? (t('ADD_LOCATION_NAME_REQUIRED') || '請輸入地點名稱') : '請輸入地點名稱';
+            } else if (!latEl || !latEl.value.trim() || !lngEl || !lngEl.value.trim()) {
+                msg = (typeof t === 'function') ? (t('ADD_LOCATION_COORDS_REQUIRED') || '請先取得位置或在地圖上點選地點') : '請先取得位置或在地圖上點選地點';
+            } else {
+                msg = (typeof t === 'function') ? (t('ADD_LOCATION_DISABLED_HINT') || '請檢查欄位') : '請檢查欄位';
+            }
+
+            showNotification(msg, 'info');
+            e.preventDefault();
+            e.stopPropagation();
         });
-    });
+    }
 
     // 5. 處理新增打卡地點
     addLocationBtn.addEventListener('click', async () => {
         const name = locationName.value; // 假設您有宣告 locationName
         const lat = locationLatInput.value;
         const lng = locationLngInput.value;
-
+        showNotification("請填寫所有欄位並取得位置", "error");
         if (!name || !lat || !lng) {
             showNotification("請填寫所有欄位並取得位置", "error");
             return;

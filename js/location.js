@@ -163,3 +163,297 @@ function initLocationMap(forceReload = false) {
         statusEl.textContent = '不支援定位';
     }
 }
+
+// 將 admin map 初始化抽成可重入函式（只執行一次）
+let _adminMapInitialized = false;
+function initAdminAddLocationMapIfNeeded() {
+    if (_adminMapInitialized) return;
+    const mapContainer = document.getElementById('admin-add-location-map');
+    if (!mapContainer) return;
+    // 若容器尚不可見（display:none 或 0 寬度），跳過，等 MutationObserver 觸發
+    const visible = mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0;
+    if (!visible) return;
+
+    _adminMapInitialized = true;
+
+    // 原本的初始化程式碼（縮短顯示，請確保這裡包含你的 adminMap 變數使用）
+    // Leaflet init
+    let adminMap, adminMarker, adminCircle;
+    let adminRadius = 50; // default meters
+
+    const latInput = document.getElementById('location-lat');
+    const lngInput = document.getElementById('location-lng');
+    const nameInput = document.getElementById('location-name');
+    const radiusSlider = document.getElementById('location-radius-slider');
+    const radiusDisplay = document.getElementById('location-radius-display');
+    const addBtn = document.getElementById('add-location-btn');
+    const getLocBtn = document.getElementById('get-location-btn');
+
+    // 初始化 radius UI
+    if (radiusSlider && radiusDisplay) {
+        adminRadius = parseInt(radiusSlider.value, 10) || adminRadius;
+        radiusDisplay.textContent = `${adminRadius} m`;
+        radiusSlider.addEventListener('input', (e) => {
+            adminRadius = parseInt(e.target.value, 10) || adminRadius;
+            radiusDisplay.textContent = `${adminRadius} m`;
+            // 若已放置圓圈，更新半徑
+            if (adminCircle) adminCircle.setRadius(adminRadius);
+        });
+    }
+
+    function enableAddIfReady() {
+        if (nameInput && nameInput.value.trim() !== '' && latInput.value && lngInput.value) {
+            addBtn.disabled = false;
+        } else {
+            addBtn.disabled = true;
+        }
+    }
+
+    function updateInputsAndEnable(lat, lng) {
+        if (latInput) latInput.value = lat.toFixed ? lat.toFixed(6) : lat;
+        if (lngInput) lngInput.value = lng.toFixed ? lng.toFixed(6) : lng;
+        enableAddIfReady();
+    }
+
+    function placeMarker(latlng) {
+        if (!adminMap) return;
+        if (adminMarker) {
+            adminMarker.setLatLng(latlng);
+        } else {
+            adminMarker = L.marker(latlng).addTo(adminMap);
+        }
+        adminMap.setView(latlng, 16);
+        updateInputsAndEnable(latlng.lat, latlng.lng);
+
+        // 建立或更新範圍圓形
+        if (adminCircle) {
+            adminCircle.setLatLng(latlng);
+            adminCircle.setRadius(adminRadius);
+        } else {
+            adminCircle = L.circle(latlng, {
+                radius: adminRadius,
+                color: '#10b981',
+                fillColor: '#10b981',
+                fillOpacity: 0.15,
+                weight: 2
+            }).addTo(adminMap);
+        }
+    }
+    // 若使用者只改變半徑且尚未放置 marker，將圓心設為地圖中心（預覽）
+    function ensurePreviewCircle() {
+        if (!adminMap) return;
+        const center = adminMap.getCenter();
+        if (adminCircle) {
+            adminCircle.setRadius(adminRadius);
+        } else {
+            adminCircle = L.circle(center, {
+                radius: adminRadius,
+                color: '#10b981',
+                fillColor: '#10b981',
+                fillOpacity: 0.08,
+                weight: 1
+            }).addTo(adminMap);
+        }
+    }
+
+    // initialize map with a default center
+    adminMap = L.map('admin-add-location-map', { attributionControl: false }).setView([23.5, 121], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(adminMap);
+
+    adminMap.whenReady(() => {
+        const loadingEl = document.getElementById('admin-map-loading');
+        if (loadingEl) loadingEl.style.display = 'none';
+        adminMap.invalidateSize();
+        // 建立初始預覽圓（若使用者尚未點選地圖）
+        ensurePreviewCircle();
+    });
+
+    // on map click, place marker and update inputs
+    adminMap.on('click', function (e) {
+        placeMarker(e.latlng);
+    });
+
+    // Get current position -> place marker
+    if (getLocBtn) {
+        getLocBtn.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert('此裝置不支援定位');
+                return;
+            }
+            getLocBtn.disabled = true;
+            getLocBtn.textContent = '取得中…';
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                placeMarker({ lat, lng });
+                // 若有圓形，確保半徑同步
+                if (adminCircle) adminCircle.setRadius(adminRadius);
+                getLocBtn.disabled = false;
+                getLocBtn.textContent = '取得當前位置';
+            }, (err) => {
+                console.error(err);
+                alert('無法取得位置：' + (err.message || err.code));
+                getLocBtn.disabled = false;
+                getLocBtn.textContent = '取得當前位置';
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        });
+    }
+
+    // enable add button when name changed and lat/lng present
+    if (nameInput) {
+        nameInput.addEventListener('input', enableAddIfReady);
+    }
+
+    // If lat/lng already present (e.g., restored), place marker
+    if (latInput && lngInput && latInput.value && lngInput.value) {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            placeMarker({ lat, lng });
+        }
+    }
+
+    // 在 adminMap 初始化或 whenReady 之後加入地標搜尋邏輯
+    // --- Admin 地圖地標搜尋功能 ---
+    const searchInput = document.getElementById('admin-map-search-input');
+    const searchResultsEl = document.getElementById('admin-map-search-results');
+    const searchClearBtn = document.getElementById('admin-map-search-clear');
+
+    function debounce(fn, wait = 300) {
+        let t = null;
+        return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), wait);
+        };
+    }
+
+    async function nominatimSearch(q) {
+        if (!q || q.trim().length === 0) return [];
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`;
+        try {
+            const res = await fetch(url, { headers: { 'Accept-Language': (typeof currentLang !== 'undefined' ? currentLang : 'zh-TW') } });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            console.error('Nominatim search error', e);
+            return [];
+        }
+    }
+
+    function renderSearchResults(items) {
+        searchResultsEl.innerHTML = '';
+        if (!items || items.length === 0) {
+            searchResultsEl.style.display = 'none';
+            return;
+        }
+        searchResultsEl.style.display = 'block';
+        items.forEach((it, idx) => {
+            const li = document.createElement('li');
+            li.tabIndex = 0;
+            li.setAttribute('role', 'option');
+            li.dataset.lat = it.lat;
+            li.dataset.lon = it.lon;
+            li.dataset.display = it.display_name || '';
+            li.innerHTML = `<div>${it.display_name}</div><small>${it.type || ''} ${it.class || ''}</small>`;
+            li.addEventListener('click', () => {
+                const lat = parseFloat(li.dataset.lat);
+                const lon = parseFloat(li.dataset.lon);
+                placeMarker({ lat, lng: lon, latlng: { lat, lng: lon } } /* normalized for placeMarker */);
+                // set inputs
+                if (latInput) latInput.value = lat.toFixed(6);
+                if (lngInput) lngInput.value = lon.toFixed(6);
+                // optionally fill name field if empty
+                if (nameInput && (!nameInput.value || nameInput.value.trim() === '')) {
+                    nameInput.value = it.display_name.split(',')[0] || it.display_name;
+                }
+                clearSearchResults();
+            });
+            li.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') li.click();
+            });
+            searchResultsEl.appendChild(li);
+        });
+    }
+
+    function clearSearchResults() {
+        searchResultsEl.innerHTML = '';
+        searchResultsEl.style.display = 'none';
+        if (searchClearBtn) searchClearBtn.style.display = 'none';
+    }
+
+    const doSearch = debounce(async (q) => {
+        if (!q || q.trim() === '') {
+            clearSearchResults();
+            return;
+        }
+        const items = await nominatimSearch(q);
+        renderSearchResults(items);
+        if (searchClearBtn) searchClearBtn.style.display = 'block';
+    }, 300);
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const q = e.target.value;
+            doSearch(q);
+        });
+        // Enter: 選第一個結果（若存在）
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const first = searchResultsEl.querySelector('li');
+                if (first) first.click();
+            } else if (e.key === 'Escape') {
+                clearSearchResults();
+            }
+        });
+    }
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            clearSearchResults();
+            searchInput && searchInput.focus();
+        });
+    }
+    // 點擊外部關閉結果
+    document.addEventListener('click', (ev) => {
+        if (!searchInput) return;
+        if (!ev.target.closest || (!ev.target.closest('#admin-map-search') && !ev.target.closest('#admin-map-search-results'))) {
+            clearSearchResults();
+        }
+    });
+    // 若 map 尚未初始化時輸入搜尋，嘗試初始化 admin map
+    if (searchInput) {
+        searchInput.addEventListener('focus', () => {
+            // 嘗試初始化 admin map（若使用延遲初始化機制）
+            if (typeof initAdminAddLocationMapIfNeeded === 'function') {
+                initAdminAddLocationMapIfNeeded();
+            }
+        });
+    }
+    // --- end admin search ---
+}
+
+// 在 DOMContentLoaded 時設置一次性的觀察器，當容器變為可見時初始化
+document.addEventListener('DOMContentLoaded', () => {
+    const mapContainer = document.getElementById('admin-add-location-map');
+    if (!mapContainer) return;
+
+    // 立刻嘗試初始化（如果已可見）
+    initAdminAddLocationMapIfNeeded();
+
+    if (!_adminMapInitialized) {
+        const observer = new MutationObserver(() => {
+            initAdminAddLocationMapIfNeeded();
+            if (_adminMapInitialized) observer.disconnect();
+        });
+        observer.observe(mapContainer, { attributes: true, childList: false, subtree: false });
+        // 另外監聽容器尺寸變化（更可靠）
+        const ro = new ResizeObserver(() => {
+            initAdminAddLocationMapIfNeeded();
+            if (_adminMapInitialized) ro.disconnect();
+        });
+        ro.observe(mapContainer);
+    }
+});

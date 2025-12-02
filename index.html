@@ -266,7 +266,16 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                 </div>
             </section>
             <!-- Form View -->
-            <section id="Form-view" class="space-y-6" style="display: none;"></section>
+            <section id="Form-view" class="space-y-6" style="display: none;">
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1 dark:text-white mb-1">
+                        未解鎖功能</h2>
+                    <p class="text-gray-500 mb-4">請聯絡開發人員</p>
+                </div>
+            </section>
+
+
+
             </section>
 
             <!-- Admin View -->
@@ -568,27 +577,62 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                         <h2 data-i18n="ADD_LOCATION_TITLE"
                             class="text-xl font-bold text-gray-800 mb-2  dark:text-white mb-1">新增打卡地點</h2>
                         <p data-i18n="ADD_LOCATION_DESCRIPTION" class="text-gray-500 mb-4">輸入地點名稱，並使用您的當前位置作為經緯度。</p>
+
+                        <!-- 地標搜尋（Admin 新增地點） -->
+                        <div id="admin-map-search" class="mb-3">
+                            <label for="admin-map-search-input" class="sr-only">搜尋地標</label>
+                            <div class="relative">
+                                <input id="admin-map-search-input" type="text" placeholder="搜尋地標或地址..." autocomplete="off"
+                                    class="w-full py-2 px-3 rounded-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                                <button id="admin-map-search-clear" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500" aria-label="清除搜尋" style="display:none">✕</button>
+                            </div>
+                            <ul id="admin-map-search-results" class="admin-map-search-results mt-1" role="listbox" aria-label="搜尋結果"></ul>
+                        </div>
+
+                         <!-- Admin Add Location Map -->
+                         <div id="admin-add-location-map"
+                             class="w-full h-64 rounded-lg mb-4 bg-gray-200 dark:bg-gray-800 relative">
+                             <!-- 覆蓋層：地圖載入中（會在 JS 中隱藏） -->
+                             <div id="admin-map-loading" class="admin-map-loading text-sm">地圖載入中...</div>
+                         </div>
+
                         <div class="space-y-4">
                             <div>
                                 <label data-i18n="LOCATION_NAME_LABEL" for="location-name"
                                     class="block text-sm font-medium text-gray-700">地點名稱</label>
-                                <input type="text" id="location-name"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <input type="text" id="location-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm
+                                    dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                             </div>
                             <div>
                                 <label data-i18n="COORDINATES_LAT_LNG_LABEL"
                                     class="block text-sm font-medium text-gray-700">經緯度 (Latitude / Longitude)</label>
                                 <div class="mt-1 flex space-x-2">
-                                    <input type="text" id="location-lat" placeholder="緯度" readonly
-                                        class="block w-1/2 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm">
-                                    <input type="text" id="location-lng" placeholder="經度" readonly
-                                        class="block w-1/2 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm">
+                                    <input type="text" id="location-lat" placeholder="緯度" readonly class="block w-1/2 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm
+                                        dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <input type="text" id="location-lng" placeholder="經度" readonly class="block w-1/2 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm
+                                        dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
                             </div>
+
+                            <!-- 新增：設定打卡地點範圍（公尺） -->
+                            <div>
+                                <label for="location-radius-slider"
+                                    class="block text-sm font-medium text-gray-700">打卡範圍</label>
+                                <div class="mt-2 flex items-center space-x-3">
+                                    <input id="location-radius-slider" type="range" min="10" max="500" step="10"
+                                        value="100" class="w-full" />
+                                    <span id="location-radius-display"
+                                        class="w-20 text-sm text-gray-700 dark:text-gray-200 text-right">50 m</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">拖移滑桿以調整允許打卡的半徑（公尺）。</p>
+                            </div>
+
                             <button data-i18n="GET_LOCATION_BTN" id="get-location-btn"
                                 class="w-full py-2 px-4 rounded-lg font-bold btn-secondary">取得當前位置</button>
-                            <button data-i18n="ADD_LOCATION_BTN" id="add-location-btn"
-                                class="w-full py-2 px-4 rounded-lg font-bold btn-primary" disabled>新增地點</button>
+                            <div id="add-location-wrapper" class="relative">
+                                <button data-i18n="ADD_LOCATION_BTN" id="add-location-btn"
+                                    class="w-full py-2 px-4 rounded-lg font-bold btn-primary" disabled>新增地點</button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -621,7 +665,12 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                 </section>
 
                 <section id="scheduling-view" class="space-y-6" style="display: none;">
-                    <div class="card p-6 mt-6">
+                    <div class="card p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-1 dark:text-white mb-1">
+                            未解鎖功能</h2>
+                        <p class="text-gray-500 mb-4">請聯絡開發人員</p>
+                    </div>
+                    <div class="card p-6 mt-6" style="display: none;">
                         <h2 data-i18n="API_TEST_TITLE"
                             class="text-xl font-bold text-gray-800 mb-2  dark:text-white mb-1">
                             API 測試區</h2>
