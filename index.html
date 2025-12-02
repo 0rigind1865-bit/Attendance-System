@@ -515,9 +515,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                             </select>
                         </div>
 
-                        <div id="admin-employee-calendar-card"
-                            class="mt-4 p-4 border border-gray-200 rounded-lg dark:border-gray-700 bg-white dark:bg-gray-800"
-                            style="display: none;">
+                        <div id="admin-employee-calendar-card" style="display: none;">
                             <div class="flex justify-between items-center mb-4">
                                 <button id="admin-prev-month-btn" class="p-2 text-blue-600 dark:text-blue-400">&lt;
                                     上個月</button>
@@ -582,19 +580,23 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                         <div id="admin-map-search" class="mb-3">
                             <label for="admin-map-search-input" class="sr-only">搜尋地標</label>
                             <div class="relative">
-                                <input id="admin-map-search-input" type="text" placeholder="搜尋地標或地址..." autocomplete="off"
+                                <input id="admin-map-search-input" type="text" placeholder="搜尋地標或地址..."
+                                    autocomplete="off"
                                     class="w-full py-2 px-3 rounded-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
-                                <button id="admin-map-search-clear" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500" aria-label="清除搜尋" style="display:none">✕</button>
+                                <button id="admin-map-search-clear"
+                                    class="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500"
+                                    aria-label="清除搜尋" style="display:none">✕</button>
                             </div>
-                            <ul id="admin-map-search-results" class="admin-map-search-results mt-1" role="listbox" aria-label="搜尋結果"></ul>
+                            <ul id="admin-map-search-results" class="admin-map-search-results mt-1" role="listbox"
+                                aria-label="搜尋結果"></ul>
                         </div>
 
-                         <!-- Admin Add Location Map -->
-                         <div id="admin-add-location-map"
-                             class="w-full h-64 rounded-lg mb-4 bg-gray-200 dark:bg-gray-800 relative">
-                             <!-- 覆蓋層：地圖載入中（會在 JS 中隱藏） -->
-                             <div id="admin-map-loading" class="admin-map-loading text-sm">地圖載入中...</div>
-                         </div>
+                        <!-- Admin Add Location Map -->
+                        <div id="admin-add-location-map"
+                            class="w-full h-64 rounded-lg mb-4 bg-gray-200 dark:bg-gray-800 relative">
+                            <!-- 覆蓋層：地圖載入中（會在 JS 中隱藏） -->
+                            <div id="admin-map-loading" class="admin-map-loading text-sm">地圖載入中...</div>
+                        </div>
 
                         <div class="space-y-4">
                             <div>
