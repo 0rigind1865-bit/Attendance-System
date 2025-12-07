@@ -71,7 +71,7 @@
     "REQUEST_REJECTED": "請求已拒絕！",
     "REVIEW_FAILED": "審核失敗：{msg}",
     "REVIEW_NETWORK_ERROR": "審核失敗，請檢查網路。",
-    "SELECT_DATETIME_LABEL":"選擇日期與時間：",
+    "SELECT_DATETIME_LABEL": "選擇日期與時間：",
     "BTN_ADJUST_IN": "補上班打卡",
     "BTN_ADJUST_OUT": "補下班打卡",
     "DETECTING_LOCATION": "正在偵測位置...",
@@ -110,9 +110,7 @@
     "PLEASE_RELOGIN": "請重新登入",
     "BTN_PUNCH_IN": "上班打卡",
     "BTN_PUNCH_OUT": "下班打卡",
-    
     "BTN_VIEW_ABNORMAL": "⚠️ 查看異常紀錄 👀",
-    
     "INVALID_ADJUST_TIME": "⚠️ 選擇的時間不合法",
     "SELECT_ADJUST_DATETIME": "請選擇補打卡日期時間",
     "LOGIN_SUCCESS": "✅ 登入成功！",
@@ -136,6 +134,7 @@
     "no_record": "無紀錄",
     "ERR_BEFORE_MONTH_START": "⚠️ 不能選擇本月以前的時間",
     "STATUS_PUNCH_NORMAL": "打卡正常",
+    "STATUS_NO_PUNCH": "無打卡紀錄",
     "STATUS_PUNCH_OUT_MISSING": "未打下班卡",
     "STATUS_PUNCH_IN_MISSING": "未打上班卡",
     "STATUS_REPAIR_PENDING": "補卡(審核中)",

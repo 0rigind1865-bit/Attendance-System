@@ -2060,6 +2060,20 @@ html.dark .notification {
   font-weight: bold;
 }
 
+.day-cell.holiday-text {
+  /* 將日期數字文字設為紅色 */
+  color: #ef4444;
+  /* Tailwind red-500 */
+  /* 也可以增加粗體或其他視覺效果 */
+  font-weight: bold;
+}
+
+/* 確保顏色在深色模式下也適用 */
+.dark .day-cell.holiday-text {
+  color: #fca5a5;
+  /* 淺一點的紅色 */
+}
+
 .day-cell:hover {
   transform: translateY(-2px);
   box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);

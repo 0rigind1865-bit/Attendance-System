@@ -33,55 +33,81 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
  * @param {Date} date - 要查詢的月份日期物件
  */
 async function renderAdminCalendar(userId, date) {
-    // 修正：使用全域變數 (來自 state.js 並在 app.js/getDOMElements 中賦值)
-    // 之前錯誤地使用 document.getElementById，現已修正為全域變數：
+    // 1. 取得全域 DOM 元素 (建議加上防呆檢查)
     const monthTitle = adminCurrentMonthDisplay;
-    const calendarGrid = adminCalendarGrid; // 假設您在 state.js 中宣告了 adminCalendarGrid
+    const calendarGrid = adminCalendarGrid;
 
+    if (!monthTitle || !calendarGrid) {
+        console.error("DOM Elements (adminCurrentMonthDisplay or adminCalendarGrid) not found.");
+        return;
+    }
+
+    // 2. 準備日期與參數
     const year = date.getFullYear();
     const month = date.getMonth();
     const today = new Date();
 
-    const monthkey = `${userId}-${year}-${String(month + 1).padStart(2, "0")}`;
+    // 統一格式：YYYY-MM (API用) 與 UserId-YYYY-MM (快取用)
+    const monthStr = String(month + 1).padStart(2, "0");
+    const apiMonthParam = `${year}-${monthStr}`;
+    const cacheKey = `${userId}-${year}-${monthStr}`;
 
-    if (adminMonthDataCache[monthkey]) {
-        const records = adminMonthDataCache[monthkey];
-        // renderCalendarWithData 來自 ui.js
+    // 定義一個內部函式來執行 UI 更新 (避免重複程式碼)
+    const updateCalendarUI = (records) => {
+        // 清空並渲染日曆 (renderCalendarWithData 來自 ui.js)
+        // 注意：calendarGrid.innerHTML 在 renderCalendarWithData 內部通常會被處理，
+        // 但若該函式是 append 模式，則需先手動清空 calendarGrid.innerHTML = '';
+        calendarGrid.innerHTML = '';
+
         renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
+
+        // 加入星期標籤 (必須在格子生成後執行)
+        _addWeekdayLabelsToAdminCalendar(year, month);
+
+        // 計算並顯示月總薪資
+        // console.log('Records:', records, 'Salary:', currentManagingEmployee?.salary);
+        calculateAndDisplayMonthlySalary(records);
+    };
+
+    // 3. 邏輯分支：檢查快取 vs API 請求
+    if (adminMonthDataCache[cacheKey]) {
+        // --- 情境 A: 快取有資料 ---
+        console.log(`[Cache Hit] Loading data for ${cacheKey}`);
+        updateCalendarUI(adminMonthDataCache[cacheKey]);
+
     } else {
+        // --- 情境 B: 無快取，需請求 API ---
+
+        // 顯示 Loading 狀態
         calendarGrid.innerHTML = '<div data-i18n="LOADING" class="col-span-full text-center text-gray-500 py-4">正在載入...</div>';
-        renderTranslations(calendarGrid); // 來自 core.js
+        if (typeof renderTranslations === 'function') renderTranslations(calendarGrid);
 
         try {
-            const monthStr = String(month + 1).padStart(2, "0");
-            const monthKey = `${year}-${monthStr}`;
-
             const res = await callApifetch({
                 action: 'getAttendanceDetails',
-                month: monthKey,
-                userId: userId // 參數名稱應與後端一致
+                month: apiMonthParam,
+                userId: userId
             });
 
             if (res.ok) {
-                adminMonthDataCache[monthkey] = res.records.dailyStatus;
-                calendarGrid.innerHTML = '';
-                const records = adminMonthDataCache[monthkey] || [];
-                renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle, true);
-                // 計算並顯示月總薪資
-                console.log('Records:', records);  // 檢查 records 是否有資料
-                console.log('Salary:', currentManagingEmployee.salary);  // 檢查薪資是否設定
-                calculateAndDisplayMonthlySalary(records);
+                // 儲存至快取
+                const records = res.records.dailyStatus || [];
+                adminMonthDataCache[cacheKey] = records;
+
+                // 更新 UI
+                updateCalendarUI(records);
             } else {
+                // API 回傳錯誤
                 console.error("Failed to fetch admin attendance records:", res.msg);
-                showNotification(res.msg || t("ERROR_FETCH_RECORDS"), "error"); // 來自 core.js
+                calendarGrid.innerHTML = `<div class="col-span-full text-center text-red-500 py-4">${res.msg || '無法載入資料'}</div>`;
+                showNotification(res.msg || t("ERROR_FETCH_RECORDS"), "error");
             }
         } catch (err) {
-            console.error(err);
+            // 網路或系統錯誤
+            console.error("System Error in renderAdminCalendar:", err);
+            calendarGrid.innerHTML = '<div class="col-span-full text-center text-red-500 py-4">發生系統錯誤</div>';
         }
     }
-
-    // 在 renderAdminCalendar(...) 的日曆格子填充完成後加入：
-    _addWeekdayLabelsToAdminCalendar(year, month);
 }
 
 /**
@@ -176,9 +202,9 @@ function calculateAndDisplayMonthlySalary(records) {
 function calculateEffectiveHours(punchInTime, punchOutTime) {
     // 休息時間定義 (格式: [開始時間, 結束時間]，皆為 'HH:MM')
     const breakTimes = [
-        ['07:00', '08:00'], // 早餐
+        ['06:00', '06:30'], // 早餐
         ['12:00', '13:00'], // 午餐
-        ['18:00', '19:00']  // 晚餐
+        ['19:00', '19:30']  // 晚餐
     ];
 
     // 輔助函數：將 'HH:MM' 轉換為當天的分鐘數
@@ -347,7 +373,7 @@ async function renderAdminDailyRecords(dateKey, userId) {
     // 內部函式：渲染日紀錄列表
     function renderRecords(records) {
         const dailyRecords = records.filter(record => record.date === dateKey);
-
+        console.log(dailyRecords);
         // 清空現有列表
         adminDailyRecordsList.innerHTML = '';
 
@@ -733,7 +759,7 @@ function initAdminEvents() {
         if (employee) {
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
-            mgmtEmployeeId.textContent = employee.userId;
+            //mgmtEmployeeId.textContent = employee.userId;
             const joinTimeSource = employee.firstLoginTime;
             if (joinTimeSource) {
                 const joinDate = new Date(joinTimeSource);

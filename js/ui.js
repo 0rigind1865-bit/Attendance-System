@@ -113,10 +113,18 @@ function renderCalendarWithData(year, month, today, records, calendarGrid, month
         let dateClass = 'normal-day';
 
         const todayRecords = records.filter(r => r.date === dateKey);
+        // 初始化假日判斷，預設為 false
+        let isHoliday = false;
 
-        // ... (日曆顏色和資料集設定邏輯不變) ...
         if (todayRecords.length > 0) {
-            const reason = todayRecords[0].reason;
+            const record = todayRecords[0];
+            const reason = record.reason;
+
+            // 🌟 新增：取得假日狀態 🌟
+            // 假設 isHoliday 來自 checkAttendance1 處理後的 dailyStatus 結構
+            isHoliday = record.isHoliday || false;
+
+            // 設定背景顏色 (根據打卡狀態)
             switch (reason) {
                 case "STATUS_PUNCH_IN_MISSING":
                     dateClass = 'abnormal-day';
@@ -139,6 +147,10 @@ function renderCalendarWithData(year, month, today, records, calendarGrid, month
                     }
                     break;
             }
+        }
+        if (isHoliday) {
+            // 由於是假日，將日期文字設為紅色 (需在 CSS 中定義 .holiday-text)
+            dayCell.classList.add('holiday-text');
         }
 
         const isToday = (year === today.getFullYear() && month === today.getMonth() && i === today.getDate());

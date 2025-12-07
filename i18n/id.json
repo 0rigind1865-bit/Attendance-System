@@ -134,6 +134,8 @@
   "no_record": "Tidak ada catatan",
   "ERR_BEFORE_MONTH_START": "⚠️ Tidak bisa memilih waktu sebelum bulan ini.",
   "ERR_AFTER_TODAY": "⚠️ Tidak bisa memilih waktu setelah hari ini.",
+  "STATUS_PUNCH_NORMAL": "打卡正常",
+  "STATUS_NO_PUNCH": "無打卡紀錄",
   "STATUS_PUNCH_OUT_MISSING": "Tidak absen keluar",
   "STATUS_PUNCH_IN_MISSING": "Tidak absen masuk",
   "STATUS_REPAIR_PENDING": "Absen susulan (Tertunda)",

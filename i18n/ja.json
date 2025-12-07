@@ -134,6 +134,8 @@
   "no_record": "記録なし",
   "ERR_BEFORE_MONTH_START": "⚠️ 今月以前の時間は選択できません",
   "ERR_AFTER_TODAY": "⚠️ 今日以降の時間は選択できません",
+  "STATUS_PUNCH_NORMAL": "打卡正常",
+  "STATUS_NO_PUNCH": "無打卡紀錄",
   "STATUS_PUNCH_OUT_MISSING": "退勤打刻なし",
   "STATUS_PUNCH_IN_MISSING": "出勤打刻なし",
   "STATUS_REPAIR_PENDING": "打刻修正（承認待ち）",

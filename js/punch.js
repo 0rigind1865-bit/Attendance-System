@@ -156,6 +156,7 @@ async function checkAbnormal() {
                 abnormalList.innerHTML = '';
                 res.records.forEach(record => {
                     // ... (渲染邏輯不變) ...
+                    console.log("Abnormal Record:", record.reason); // 調試輸出
                     const li = document.createElement('li');
                     li.className = 'p-3 bg-gray-50 rounded-lg flex justify-between items-center dark:bg-gray-700';
                     li.innerHTML = `

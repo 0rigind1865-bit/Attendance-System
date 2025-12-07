@@ -134,6 +134,8 @@
   "no_record": "No Record",
   "ERR_BEFORE_MONTH_START": "⚠️ Cannot select a time before this month.",
   "ERR_AFTER_TODAY": "⚠️ Cannot select a time after today.",
+  "STATUS_PUNCH_NORMAL": "打卡正常",
+  "STATUS_NO_PUNCH": "無打卡紀錄",
   "STATUS_PUNCH_OUT_MISSING": "Missed Punch Out",
   "STATUS_PUNCH_IN_MISSING": "Missed Punch In",
   "STATUS_REPAIR_PENDING": "Make-up Punch (Pending)",
