@@ -2062,7 +2062,7 @@ html.dark .notification {
 
 .day-cell.holiday-text {
   /* 將日期數字文字設為紅色 */
-  color: #ef4444;
+  color: white;
   /* Tailwind red-500 */
   /* 也可以增加粗體或其他視覺效果 */
   font-weight: bold;

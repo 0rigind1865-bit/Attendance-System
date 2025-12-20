@@ -164,7 +164,7 @@ async function checkAbnormal() {
                             <p class="font-medium text-gray-800 dark:text-white">${record.date}</p>
                             <p class="text-sm text-red-600 dark:text-red-400"
                                data-i18n-dynamic="true"
-                               data-i18n-key="${record.reason}">
+                               data-i18n-key="${record.reason}"> 1
                            </p>
                         </div>
                         <button data-i18n="ADJUST_BUTTON_TEXT" data-date="${record.date}" data-reason="${record.reason}" 

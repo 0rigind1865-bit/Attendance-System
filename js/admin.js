@@ -118,41 +118,65 @@ function calculateAndDisplayMonthlySalary(records) {
     // 檢查全域變數是否存在，如果不存在，提供合理的預設值
     const monthlySalary = (typeof currentManagingEmployee !== 'undefined' && currentManagingEmployee.salary)
         ? currentManagingEmployee.salary
-        : 28590; // 預設為2025最低月薪
+        : 30000; // 預設為2025最低月薪
 
-    const hourlyRate = (monthlySalary / 240); // 確保是數字進行計算
+    let hourlyRate = (monthlySalary / 240); // 確保是數字進行計算
     const hourlyRateDisplay = hourlyRate.toFixed(2);
 
-    let totalMonthlySalary = 0;
+    let totalMonthlyOvertimeSalary = 0;
     let calculationDetails = []; // 儲存每日計算細節
-
+    let totalNormalHours = 0;//此月正常工時
+    let totalOvertimeHours = 0;//此月加班工時：
+    let totalNetHours = 0;//此月總淨工時：
+    let totalRestHours = 0;//此月休息時數：
+    let totalGrossHours = 0;//此月總時數：
     records.forEach(dailyRecord => {
         // 確保有打卡時間欄位才計算
         if (dailyRecord.punchInTime && dailyRecord.punchOutTime) {
+            // 判斷日子類型 
+            const dateObject = new Date(dailyRecord.date);
 
+            // 檢查轉換是否成功，避免轉換失敗時繼續執行
+            if (isNaN(dateObject)) {
+                console.error(`日期格式錯誤，無法轉換: ${dailyRecord.date}`);
+                return; // 跳過此筆紀錄
+            }
+
+            const dayOfWeek = dateObject.getDay(); // 0=週日, 6=週六
+
+            const isNationalHoliday = dailyRecord.isHoliday || false;
+
+            const dayType = determineDayType(dayOfWeek, isNationalHoliday);
+            //console.log(`計算日期: ${dailyRecord.date},dayOfWeek:${dayOfWeek}, 類型: ${dayType}`);
             // 🚨 步驟 1：使用新函數計算淨工時與扣除分鐘數
             const {
                 dailySalary,
                 calculation,
                 effectiveHours,
-                totalBreakMinutes
+                totalBreakMinutes,
+                laborHoursDetails,
             } = calculateDailySalaryFromPunches(
                 dailyRecord.punchInTime,
                 dailyRecord.punchOutTime,
-                hourlyRate
+                hourlyRate,
+                dayType
             );
-
+            console.log(laborHoursDetails);
+            totalNormalHours = totalNormalHours + laborHoursDetails.normalHours;
+            totalOvertimeHours = totalOvertimeHours + laborHoursDetails.overtimeHours;
+            totalNetHours = totalNormalHours + totalOvertimeHours;
+            totalRestHours = totalRestHours + laborHoursDetails.restHours;
+            totalGrossHours = totalNetHours + totalRestHours;
             // 格式化扣除的休息時間
             const breakHoursDisplay = (totalBreakMinutes / 60).toFixed(2);
 
             if (effectiveHours > 0) {
-                totalMonthlySalary += dailySalary;
-
+                totalMonthlyOvertimeSalary += dailySalary;
                 const effectiveHoursFixed = effectiveHours.toFixed(2);
                 calculationDetails.push(
                     `日期 ${dailyRecord.date} (${dailyRecord.punchInTime}-${dailyRecord.punchOutTime}): 
                      - 休息扣除 ${breakHoursDisplay}h (淨工時 ${effectiveHoursFixed}h)
-                     - 日薪計算: ${calculation}`
+                     - 加班計算: ${calculation}`
                 );
             } else if (totalBreakMinutes > 0) {
                 // 記錄打卡了，但全被休息時間扣除的情況
@@ -164,12 +188,15 @@ function calculateAndDisplayMonthlySalary(records) {
         }
     });
 
-    totalMonthlySalary = totalMonthlySalary.toFixed(2);
+    totalMonthlyOvertimeSalary = totalMonthlyOvertimeSalary.toFixed(2);
 
     // 顯示月總薪資
     const displayElement = document.getElementById('admin-monthly-salary-display');
     const targetDisplay = (typeof adminMonthlySalaryDisplay !== 'undefined') ? adminMonthlySalaryDisplay : displayElement;
-
+    let totalMonthlySalary = (
+        +monthlySalary +
+        +totalMonthlyOvertimeSalary
+    ).toFixed(2);
     if (targetDisplay) {
         targetDisplay.innerHTML = `
             <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -177,7 +204,33 @@ function calculateAndDisplayMonthlySalary(records) {
                 <span class="text-lg font-bold text-indigo-600 dark:text-indigo-400">${totalMonthlySalary} NTD</span>
             </p>
             <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">月薪：</span> ${monthlySalary} NTD
+            </p>
+            <p class="text-xs text-gray-400 mt-1 italic">
                 <span data-i18n="HOURLY_RATE_CALCULATED">等效時薪：</span> ${hourlyRateDisplay} NTD/小時
+            </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月加班總薪資：</span> ${totalMonthlyOvertimeSalary} NTD
+            </p>
+            </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月正常工時：</span> ${totalNormalHours} Hr
+            </p>
+            </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月加班工時：</span> ${totalOvertimeHours} Hr
+            </p>
+            </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月總淨工時：</span> ${totalNetHours} Hr
+            </p>
+            </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月休息時數：</span> ${totalRestHours} Hr
+            </p>
+                        </p>
+                 <p class="text-xs text-gray-400 mt-1 italic">
+                <span data-i18n="HOURLY_RATE_CALCULATED">此月總時數：</span> ${totalGrossHours} Hr
             </p>
             <details class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 <summary>計算細節 (點擊展開)</summary>
@@ -255,45 +308,157 @@ function calculateEffectiveHours(punchInTime, punchOutTime) {
 
     return { effectiveHours, totalBreakMinutes }; // 回傳物件
 }
+
 /**
- * 計算單日薪資 (考慮加班倍率)
- * @param {number} hours - 當日總時數
+ * 計算單日薪資 (符合勞動部一例一休規則)
+ * @param {number} hours - 當日淨工時 (已扣除休息時間)
  * @param {number} hourlyRate - 等效時薪
+ * @param {string} dayType - 日子類型 (來自 DAY_TYPE 常數)
  * @returns {Object} - { dailySalary: number, calculation: string }
  */
-function calculateDailySalary(hours, hourlyRate) {
+function calculateDailySalary(hours, hourlyRate, dayType) {
     let dailySalary = 0;
     let calculation = '';
+    const NORMAL_WORK_HOURS = 8;
+    // --- 🆕 初始化時數細節 ---
+    const dailyHours = {
+        normalHours: 0,   // 屬於法定正常工時 (平日前 8 小時)
+        overtimeHours: 0, // 加班工時 (平日 >8h, 休息日所有時數)
+        restHours: 0,     // 休息時數 (來自 calculateEffectiveHours 傳入)
+        netHours: hours   // 淨工時 (總計薪時數)
+    };
 
-    if (hours <= 8) {
-        // 正常工時: 直接乘時數
-        dailySalary = hourlyRate * hours;
-        calculation = `${hourlyRate} × ${hours} = ${dailySalary.toFixed(2)}`;
+    // -------------------------
+    // 如果 hours <= 0，直接返回 0
+    if (hours <= 0) {
+        return { dailySalary: 0, calculation: '淨工時 0h，無薪資' };
+    }
+
+    if (dayType === DAY_TYPE.REGULAR_OFF) {
+        // =========================================================
+        // 例假日 (週日) 計算 (不得要求出勤，違者重罰)
+        // 假設：此出勤為合法，工資照給 + 額外一日工資。
+        // 計薪公式：(8小時) × 2倍 + (超過8小時) × 2.66倍
+        // =========================================================
+        dailyHours.overtimeHours = hours; // 例假日出勤，所有工時皆為加班性質（特休/例假性質）
+        // 額外發給的工資（不論工時長短，至少給予一日工資，即 8 小時薪資）
+        const extraPay = hourlyRate * 8;
+        dailySalary += extraPay;
+        calculation += `${hourlyRate} × 8 (不論工時長短，至少給予一日工資，即 8 小時薪資) = ${extraPay.toFixed(2)}; `;
+
+        let hWorked = hours;
+        let hOver8 = Math.max(0, hWorked - 8);
+
+        // 例假日超時部分（超 8 小時）：按2倍 計
+        if (hOver8 > 0) {
+            const payOver = hourlyRate * hOver8 * 2;
+            dailySalary += payOver;
+            calculation += `${hourlyRate} × ${hOver8} × 2 (例假日 >8h 加班) = ${payOver.toFixed(2)}; `;
+        }
+        // 例假日上班補休一天-折現
+        dailySalary += extraPay;
+        calculation += `${hourlyRate} × 8 (例假日上班補休一天-折現) = ${extraPay.toFixed(2)}; `;
+    } else if (dayType === DAY_TYPE.HOLIDAY) {
+        // =========================================================
+        // 國定假日 (特別休假) 計算
+        // =========================================================
+        dailyHours.overtimeHours = hours; // 例假日出勤，所有工時皆為加班性質（特休/例假性質）
+        if (hours <= 8) {
+            dailySalary = hourlyRate * 8;
+            calculation = `${hourlyRate} × ${8} (國定假日-不論工時長短，至少給予一日工資，即 8 小時薪資) = ${dailySalary.toFixed(2)}`;
+        } else {
+            const normalPay = hourlyRate * 8;
+            dailySalary += normalPay;
+            calculation += `${hourlyRate} × 8 (國定假日) = ${normalPay.toFixed(2)}; `;
+
+            let overtimeHours = hours - 8;
+
+            // 加班前 2 小時: 1.33 倍 (4/3)
+            if (overtimeHours > 0) {
+                const overtime1 = Math.min(overtimeHours, 2);
+                const overtimePay1 = hourlyRate * overtime1 * 4 / 3;
+                dailySalary += overtimePay1;
+                calculation += `${hourlyRate} × ${overtime1} × 4/3 (國定假日加班 1-2h) = ${overtimePay1.toFixed(2)}; `;
+                overtimeHours -= overtime1;
+            }
+            // 加班後續小時: 1.66 倍 (5/3)
+            if (overtimeHours > 0) {
+                const overtimePay2 = hourlyRate * overtimeHours * 5 / 3;
+                dailySalary += overtimePay2;
+                calculation += `${hourlyRate} × ${overtimeHours} × 5/3 (國定假日加班 >2h) = ${overtimePay2.toFixed(2)}; `;
+            }
+        }
+    } else if (dayType === DAY_TYPE.REST_DAY) {
+        // =========================================================
+        // 休息日 (週六) 加班計算 (勞基法 §24 II)
+        // 薪資基數：前 2h: 4/3；接著 6h: 5/3；超過 8h: 8/3。
+        // =========================================================
+        dailyHours.overtimeHours = hours; // 例假日出勤，所有工時皆為加班性質（特休/例假性質）
+        let remainingHours = hours;
+
+        // 1. 前 2 小時: 1.33 倍 (4/3)
+        if (remainingHours > 0) {
+            const h = Math.min(remainingHours, 2);
+            const pay = hourlyRate * h * 4 / 3;
+            dailySalary += pay;
+            calculation += `${hourlyRate} × ${h} × 4/3 (休息日 1-2h) = ${pay.toFixed(2)}; `;
+            remainingHours -= h;
+        }
+
+        // 2. 接著 6 小時 (總時數 3-8h): 1.66 倍 (5/3)
+        if (remainingHours > 0) {
+            const h = Math.min(remainingHours, 6);
+            const pay = hourlyRate * h * 5 / 3;
+            dailySalary += pay;
+            calculation += `${hourlyRate} × ${h} × 5/3 (休息日 3-8h) = ${pay.toFixed(2)}; `;
+            remainingHours -= h;
+        }
+
+        // 3. 超過 8 小時: 2.66 倍 (8/3)
+        if (remainingHours > 0) {
+            const h = remainingHours;
+            const pay = hourlyRate * h * 8 / 3;
+            dailySalary += pay;
+            calculation += `${hourlyRate} × ${h} × 8/3 (休息日 >8h) = ${pay.toFixed(2)}; `;
+        }
     } else {
-        // 正常8小時
-        const normalPay = hourlyRate * 8;
-        dailySalary += normalPay;
-        calculation += `${hourlyRate} × 8 (正常) = ${normalPay.toFixed(2)}; `;
+        // =========================================================
+        // 平日/工作日 加班計算 (原邏輯，勞基法 §24 I)
+        // =========================================================
+        let normalHours = Math.min(hours, NORMAL_WORK_HOURS);
+        let overtimeHours = Math.max(0, hours - NORMAL_WORK_HOURS);
 
-        let overtimeHours = hours - 8;
-        // 加班前2小時: 1.33倍
+        dailyHours.normalHours = normalHours;
+        dailyHours.overtimeHours = overtimeHours;
+
+        overtimeHours = hours - normalHours;
+
+        // 加班前 2 小時: 1.33 倍 (4/3)
         if (overtimeHours > 0) {
             const overtime1 = Math.min(overtimeHours, 2);
             const overtimePay1 = hourlyRate * overtime1 * 4 / 3;
             dailySalary += overtimePay1;
-            calculation += `${hourlyRate} × ${overtime1} × 4/3 (前2小時加班) = ${overtimePay1.toFixed(2)}; `;
+            calculation += `${hourlyRate} × ${overtime1} × 4/3 (平日加班 1-2h) = ${overtimePay1.toFixed(2)}; `;
             overtimeHours -= overtime1;
         }
-        // 加班後續小時: 1.66倍
+        // 加班後續小時: 1.66 倍 (5/3)
         if (overtimeHours > 0) {
             const overtimePay2 = hourlyRate * overtimeHours * 5 / 3;
             dailySalary += overtimePay2;
-            calculation += `${hourlyRate} × ${overtimeHours} × 5/3 (後續加班) = ${overtimePay2.toFixed(2)}; `;
+            calculation += `${hourlyRate} × ${overtimeHours} × 5/3 (平日加班 >2h) = ${overtimePay2.toFixed(2)}; `;
         }
+
+    }
+
+    // 將總計加入 calculation 字串
+    if (calculation && !calculation.includes('總計')) {
         calculation += `總計 = ${dailySalary.toFixed(2)}`;
     }
 
-    return { dailySalary, calculation };
+    return {
+        dailySalary: parseFloat(dailySalary.toFixed(2)), calculation,
+        laborHoursDetails: dailyHours
+    };
 }
 /**
  * 🆕 專門用於處理「原始打卡時間」並計算單日薪資的函式。
@@ -304,26 +469,46 @@ function calculateDailySalary(hours, hourlyRate) {
  * @param {number} hourlyRate - 等效時薪 (數字)
  * @returns {Object} 包含所有細節的物件：{ dailySalary, calculation, effectiveHours, totalBreakMinutes }
  */
-function calculateDailySalaryFromPunches(punchInTime, punchOutTime, hourlyRate) {
+function calculateDailySalaryFromPunches(punchInTime, punchOutTime, hourlyRate, dayType) {
     // 1. 計算淨工時與休息扣除時間
     const { effectiveHours, totalBreakMinutes } = calculateEffectiveHours(punchInTime, punchOutTime);
+
+    // 🌟 預先計算休息小時數 🌟
+    const restHours = parseFloat((totalBreakMinutes / 60).toFixed(2));
 
     let result = {
         dailySalary: 0,
         calculation: '',
         effectiveHours: effectiveHours,
-        totalBreakMinutes: totalBreakMinutes
+        totalBreakMinutes: totalBreakMinutes,
+        // 預設的工時細節 (如果沒有 effectiveHours，只顯示休息時數)
+        laborHoursDetails: {
+            normalHours: 0,
+            overtimeHours: 0,
+            restHours: restHours, // 📌 初始化時填入正確的休息時數
+            netHours: effectiveHours
+        }
     };
 
     if (effectiveHours > 0) {
-        // 2. 呼叫核心函式計算薪資 (傳入已確認的淨工時)
-        const salaryResult = calculateDailySalary(effectiveHours, hourlyRate);
+        // 2. 呼叫核心函式計算薪資
+        const salaryResult = calculateDailySalary(effectiveHours, hourlyRate, dayType);
 
         result.dailySalary = salaryResult.dailySalary;
         result.calculation = salaryResult.calculation;
-    }
 
-    // 如果沒有淨工時 (effectiveHours === 0)，則 dailySalary 會是 0，calculation 會是空字串。
+        // 🌟 修正點 1: 使用展開運算子 (Spread Operator) 整合時數分類 🌟
+        // 這確保了 restHours 即使在 salaryResult 中沒有被明確處理，也能被保留。
+        if (salaryResult.laborHoursDetails) {
+            result.laborHoursDetails = {
+                ...salaryResult.laborHoursDetails,
+                restHours: restHours // 📌 確保 restHours 覆蓋/更新為本地計算的值
+            };
+        }
+
+        // 修正點 2: 處理計算後，淨工時可能與有效工時不符的問題 (理論上不應發生，但為穩健而保留)
+        result.laborHoursDetails.netHours = effectiveHours;
+    }
 
     return result;
 }
@@ -428,8 +613,23 @@ async function renderAdminDailyRecords(dateKey, userId) {
                         </p>
                     `;
                     // 計算當日薪資 (使用 currentManagingEmployee.salary，假設已從員工選擇事件中設定)
-                    const monthlySalary = currentManagingEmployee.salary || 28590; // 預設為2025最低月薪，如果無資料
+                    const monthlySalary = currentManagingEmployee.salary || 30000; // 預設為2025最低月薪，如果無資料
                     const hourlyRate = (monthlySalary / 240); // 確保是數字進行計算，用於傳遞給底層函式
+
+                    const dateObject = new Date(dailyRecord.date);
+
+                    // 檢查轉換是否成功，避免轉換失敗時繼續執行
+                    if (isNaN(dateObject)) {
+                        console.error(`日期格式錯誤，無法轉換: ${dailyRecord.date}`);
+                        return; // 跳過此筆紀錄
+                    }
+
+                    const dayOfWeek = dateObject.getDay(); // 0=週日, 6=週六
+
+                    const isNationalHoliday = dailyRecord.isHoliday || false;
+
+                    const dayType = determineDayType(dayOfWeek, isNationalHoliday);
+                    console.log(`計算日期: ${dailyRecord.date},dayOfWeek:${dayOfWeek}, 類型: ${dayType}`);
                     const hourlyRateDisplay = hourlyRate.toFixed(2); // 用於顯示
 
                     // 🚨 關鍵變動：使用新的包裝函式來計算所有細節
@@ -441,7 +641,8 @@ async function renderAdminDailyRecords(dateKey, userId) {
                     } = calculateDailySalaryFromPunches(
                         dailyRecord.punchInTime,
                         dailyRecord.punchOutTime,
-                        hourlyRate
+                        hourlyRate,
+                        dayType
                     );
 
                     const breakHoursDisplay = (totalBreakMinutes / 60).toFixed(2);
@@ -467,7 +668,7 @@ async function renderAdminDailyRecords(dateKey, userId) {
                         // 處理淨工時為 0 但有打卡的情況
                         salaryHtml = `
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            <span data-i18n="RECORD_SALARY_PREFIX">當日薪資：</span>
+            <span data-i18n="RECORD_SALARY_PREFIX">當日加班薪資：</span>
             0.00 NTD
         </p>
         <p class="text-xs text-red-400 mt-1 italic">
@@ -535,7 +736,32 @@ function _addWeekdayLabelsToAdminCalendar(year, month) {
         header.appendChild(cell);
     }
 }
+// 日子類型常數 (新增區分 例假日 與 國定假日)
+const DAY_TYPE = {
+    NORMAL: 'NORMAL',         // 平日 (週一至週五)
+    REST_DAY: 'REST_DAY',     // 休息日 (週六)
+    REGULAR_OFF: 'REGULAR_OFF', // 例假日 (週日)
+    HOLIDAY: 'HOLIDAY'         // 國定假日 (特別休假日)
+};
 
+/**
+ * 根據星期幾和是否為國定假日，判斷該日子的類型。
+ * @param {number} dayOfWeek - 星期幾 (0=日, 6=六)
+ * @param {boolean} isNationalHoliday - 是否為國定假日 (來自 holiday map)
+ * @returns {string} - 回傳 DAY_TYPE 中的常數
+ */
+function determineDayType(dayOfWeek, isNationalHoliday) {
+    if (isNationalHoliday && dayOfWeek === 0) {
+        return DAY_TYPE.REGULAR_OFF; // 週日 (例假日)
+    }
+    if (isNationalHoliday && dayOfWeek === 6) {
+        return DAY_TYPE.REST_DAY; // 週六 (休息日)
+    }
+    if (isNationalHoliday) {
+        return DAY_TYPE.HOLIDAY; // 國定假日
+    }
+    return DAY_TYPE.NORMAL; // 週一到週五 (平日)
+}
 // #endregion
 
 // ===================================
@@ -1112,12 +1338,16 @@ function setupAdminExport() {
         const { baseMonthly, hourlyRate } = resolveHourlyRateForExport();
 
         const sheetRows = [
-            ['日期', '星期', '上班時間', '上班地點', '下班時間', '下班地點', '原始時數(小時)', '淨工時(小時)', '休息(小時)', '日薪(NTD)', '備註']
+            ['日期', '星期', '上班時間', '上班地點', '下班時間', '下班地點',
+                '原始時數(小時)', '淨工時(小時)',
+                '休息扣除(小時)', '正常工時(小時)', '加班工時(小時)', // <-- 新增欄位
+                '日薪(NTD)', '備註']
         ];
         const calcRows = [['日期', '計算過程說明', '日薪 (NTD)']];
 
         let totalHours = 0, totalRawHours = 0, totalBreakMinutes = 0, totalSalary = 0;
-
+        let totalNormalHours = 0;
+        let totalOvertimeHours = 0;
         for (let d = 1; d <= daysInMonth; d++) {
             const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
             const dateObj = new Date(year, month, d);
@@ -1132,6 +1362,9 @@ function setupAdminExport() {
             const outTime = outPunch ? (outPunch.time || outPunch.timeString || outPunch.clockTime || outPunch.t || outPunch.ts || '') : '';
             const outLoc = outPunch ? (outPunch.location || outPunch.loc || outPunch.place || outPunch.geo || '') : '';
 
+            const dayOfWeek = dateObj.getDay(); // 必須從 dateObj 取得
+            const isNationalHoliday = r && r.isHoliday || false; // 必須從 r 紀錄或 map 取得
+            const dayType = determineDayType(dayOfWeek, isNationalHoliday); // 假設 determineDayType 函式在全域可用
             // 原始時數
             let rawHours = 0;
             if (r && (r.hours != null)) rawHours = Number(r.hours);
@@ -1140,17 +1373,25 @@ function setupAdminExport() {
 
             // 使用 calculateDailySalaryFromPunches（包含休息扣除）或 fallback
             let effectiveHours = 0, breakMinutes = 0, dailySalary = 0, calcDesc = '';
+            let normalHours = 0, overtimeHours = 0, restHours = 0;
             if (inTime && outTime && typeof calculateDailySalaryFromPunches === 'function') {
-                const res = calculateDailySalaryFromPunches(inTime, outTime, hourlyRate);
+                const res = calculateDailySalaryFromPunches(inTime, outTime, hourlyRate, dayType);
                 effectiveHours = Number(res.effectiveHours || 0);
                 breakMinutes = Number(res.totalBreakMinutes || 0);
                 dailySalary = Number(res.dailySalary || 0);
                 calcDesc = res.calculation || `${effectiveHours} × ${hourlyRate.toFixed(2)} = ${dailySalary.toFixed(2)}`;
+                if (res.laborHoursDetails) {
+                    normalHours = Number(res.laborHoursDetails.normalHours || 0);
+                    overtimeHours = Number(res.laborHoursDetails.overtimeHours || 0);
+                    // restHours 已經在 calculateDailySalaryFromPunches 中被計算，這裡是從結果物件中再次取得小時數
+                    restHours = Number(res.laborHoursDetails.restHours || 0);
+                }
             } else {
                 effectiveHours = rawHours;
                 breakMinutes = 0;
                 if (typeof calculateDailySalary === 'function') {
-                    const rcalc = calculateDailySalary(effectiveHours, hourlyRate);
+
+                    const rcalc = calculateDailySalary(effectiveHours, hourlyRate, dayType);
                     dailySalary = rcalc && rcalc.dailySalary ? Number(rcalc.dailySalary) : Number((effectiveHours * hourlyRate) || 0);
                     calcDesc = rcalc && rcalc.calculation ? rcalc.calculation : `${effectiveHours} × ${hourlyRate.toFixed(2)} = ${dailySalary.toFixed(2)}`;
                 } else {
@@ -1166,6 +1407,9 @@ function setupAdminExport() {
                 Number(rawHours.toFixed ? rawHours.toFixed(2) : rawHours),
                 Number(effectiveHours.toFixed(2)),
                 Number((breakMinutes / 60).toFixed(2)),
+                Number(restHours.toFixed(2)), // 休息扣除
+                Number(normalHours.toFixed(2)), // 正常工時
+                Number(overtimeHours.toFixed(2)), // 加班工時
                 Number(dailySalary.toFixed(2)),
                 note
             ]);
@@ -1175,6 +1419,8 @@ function setupAdminExport() {
             totalHours += Number(effectiveHours || 0);
             totalBreakMinutes += Number(breakMinutes || 0);
             totalSalary += Number(dailySalary || 0);
+            totalNormalHours += normalHours;
+            totalOvertimeHours += overtimeHours;
         }
 
         const summaryRows = [
@@ -1186,6 +1432,12 @@ function setupAdminExport() {
             ['總原始時數 (小時)', Number(totalRawHours.toFixed(2))],
             ['總淨工時 (小時)', Number(totalHours.toFixed(2))],
             ['總休息時間 (小時)', Number((totalBreakMinutes / 60).toFixed(2))],
+            ['總薪資 (NTD)', Number(totalSalary.toFixed(2))],
+            ['總原始時數 (小時)', Number(totalRawHours.toFixed(2))],
+            ['總淨工時 (小時)', Number(totalHours.toFixed(2))],
+            ['總休息時間 (小時)', Number((totalBreakMinutes / 60).toFixed(2))],
+            ['總正常工時 (小時)', Number(totalNormalHours.toFixed(2))], // <-- 新增
+            ['總加班工時 (小時)', Number(totalOvertimeHours.toFixed(2))], // <-- 新增
             ['總薪資 (NTD)', Number(totalSalary.toFixed(2))]
         ];
 

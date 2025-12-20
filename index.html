@@ -135,7 +135,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                     class="py-2 px-4 rounded-full font-bold text-sm text-white bg-indigo-600">儀表板</button>
                 <button id="tab-monthly-btn" data-i18n="TAB_MONTHLY"
                     class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">月份檢視</button>
-                <button id="tab-Form-btn" data-i18n="TAB_FORM"
+                <button id="tab-Form-btn" data-i18n="TAB_FORM" style="display: none;"
                     class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">表單申請</button>
                 <button id="tab-location-btn" data-i18n="TAB_LOCATION"
                     class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200"
@@ -215,7 +215,10 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                 <div class="card p-6">
                     <div class="flex justify-between items-center mb-4">
                         <button id="prev-month" class="text-gray-600 p-2 rounded-full hover:bg-gray-100">◄</button>
-                        <h3 id="month-title" class="font-bold text-xl text-gray-800 dark:text-white mb-1"></h3>
+                        <div class="flex items-center justify-between">
+                            <h3 id="month-title" class="font-bold text-xl text-gray-800 dark:text-white mb-1"></h3>
+                            <button id="refresh-month" class="text-gray-600 p-2 hover:bg-gray-100">↻</button>
+                        </div>
                         <button id="next-month" class="text-gray-600 p-2 rounded-full hover:bg-gray-100">►</button>
                     </div>
                     <div class="grid grid-cols-7 text-center text-sm font-semibold text-gray-500 mb-2">
@@ -295,7 +298,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
                         <button id="tab-form-review-btn" data-i18n="TAB_FORM_REVIEW"
                             class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">表單審核</button>
                         <!-- 4. 排班 -->
-                        <button id="tab-scheduling-btn" data-i18n="TAB_SCHEDULING"
+                        <button id="tab-scheduling-btn" data-i18n="TAB_SCHEDULING" style="display: none;"
                             class="py-2 px-4 rounded-full font-bold text-sm text-gray-600 bg-gray-200">排班</button>
                     </div>
                 </div>

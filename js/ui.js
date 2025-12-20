@@ -23,7 +23,7 @@ Please credit "0J (Lin Jie / 0rigin1856)" when redistributing or modifying this 
 // ===================================
 
 // 渲染日曆的函式
-async function renderCalendar(date) {
+async function renderCalendar(date, isrefresh = false) {
     const monthTitle = document.getElementById('month-title');
     const calendarGrid = document.getElementById('calendar-grid');
     const year = date.getFullYear();
@@ -34,7 +34,7 @@ async function renderCalendar(date) {
     const monthkey = currentMonthDate.getFullYear() + "-" + String(currentMonthDate.getMonth() + 1).padStart(2, "0");
 
     // 檢查快取中是否已有該月份資料
-    if (monthDataCache[monthkey]) {
+    if (monthDataCache[monthkey] && !isrefresh) {
         // 如果有，直接從快取讀取資料並渲染
         const records = monthDataCache[monthkey];
         renderCalendarWithData(year, month, today, records, calendarGrid, monthTitle);

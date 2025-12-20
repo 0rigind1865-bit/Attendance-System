@@ -223,7 +223,10 @@ function bindEvents() {
         currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
         renderCalendar(currentMonthDate); // 來自 ui.js
     });
-
+    document.getElementById('refresh-month').addEventListener('click', () => {
+        currentMonthDate.setMonth(currentMonthDate.getMonth());
+        renderCalendar(currentMonthDate, true); // 來自 ui.js
+    });
     // === 語系切換事件 ===
     document.getElementById('language-switcher').addEventListener('change', (e) => {
         const newLang = e.target.value;
