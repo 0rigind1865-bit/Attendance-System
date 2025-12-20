@@ -241,6 +241,13 @@ html.dark .notification {
     box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
+.day-cell.holiday-text {
+    /* 將日期數字文字設為紅色 */
+    color: red;
+    /* Tailwind red-500 */
+    /* 也可以增加粗體或其他視覺效果 */
+    font-weight: underline;
+}
 
 /* 💡 暗黑模式下的日曆單元格 */
 html.dark .day-cell.future-day {
@@ -292,11 +299,21 @@ html.dark .day-cell.today {
     /* dark:text-green-200 */
 }
 
+/* 確保顏色在深色模式下也適用 */
+html.dark.day-cell.holiday-text {
+    color: #ff0000;
+    /* 淺一點的紅色 */
+
+    /* 也可以增加粗體或其他視覺效果 */
+    font-weight: underline;
+}
+
 html.dark .day-cell:hover {
     /* 確保 hover 效果在暗色模式下仍可見 */
     transform: translateY(-2px);
     box-shadow: 0 2px 4px -1px rgb(255 255 255 / 0.1), 0 1px 2px -1px rgb(255 255 255 / 0.05);
 }
+
 
 /* 確保地圖容器的背景在反轉時不會出現亮色閃爍 */
 #map {
