@@ -357,4 +357,4 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.remove('hidden');
         localStorage.removeItem(HIDE_KEY);
     });
-})();
+});
