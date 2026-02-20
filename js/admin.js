@@ -970,9 +970,11 @@ function initAdminEvents() {
         currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
 
         if (adminSelectedUserId) {
+            window.currentManagingEmployee = currentManagingEmployee;
             adminEmployeeCalendarCard.style.display = 'block';
             await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
         } else {
+            window.currentManagingEmployee = null;
             adminEmployeeCalendarCard.style.display = 'none';
         }
     });
