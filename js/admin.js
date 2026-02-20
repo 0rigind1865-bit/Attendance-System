@@ -984,6 +984,7 @@ function initAdminEvents() {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
         if (employee) {
+            window.currentManagingEmployee = employee;
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
             //mgmtEmployeeId.textContent = employee.userId;
@@ -1027,6 +1028,7 @@ function initAdminEvents() {
 
                 mgmtEmployeeSeniority.textContent = seniorityText.trim() || 'N/A';
             } else {
+                window.currentManagingEmployee = null;
                 mgmtEmployeeJoinDate.textContent = 'N/A';
                 mgmtEmployeeSeniority.textContent = 'N/A';
             }
