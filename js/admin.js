@@ -967,8 +967,8 @@ function initAdminEvents() {
     adminSelectEmployee.addEventListener('change', async (e) => {
 
         adminSelectedUserId = e.target.value; // 來自 state.js
-        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
-
+        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);
+        console.log("111Selected employee for calendar:", currentManagingEmployee);
         if (adminSelectedUserId) {
             adminEmployeeCalendarCard.style.display = 'block';
             await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
@@ -981,7 +981,9 @@ function initAdminEvents() {
     adminSelectEmployeeMgmt.addEventListener('change', async (e) => {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
-        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
+        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);
+
+        console.log("222Selected employee for calendar:", currentManagingEmployee);
         if (employee) {
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
