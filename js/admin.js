@@ -970,11 +970,9 @@ function initAdminEvents() {
         currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
 
         if (adminSelectedUserId) {
-            window.currentManagingEmployee = currentManagingEmployee;
             adminEmployeeCalendarCard.style.display = 'block';
             await renderAdminCalendar(adminSelectedUserId, adminCurrentDate); // 來自 state.js
         } else {
-            window.currentManagingEmployee = null;
             adminEmployeeCalendarCard.style.display = 'none';
         }
     });
@@ -983,8 +981,8 @@ function initAdminEvents() {
     adminSelectEmployeeMgmt.addEventListener('change', async (e) => {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
+        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);;
         if (employee) {
-            window.currentManagingEmployee = employee;
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
             //mgmtEmployeeId.textContent = employee.userId;
@@ -1028,7 +1026,6 @@ function initAdminEvents() {
 
                 mgmtEmployeeSeniority.textContent = seniorityText.trim() || 'N/A';
             } else {
-                window.currentManagingEmployee = null;
                 mgmtEmployeeJoinDate.textContent = 'N/A';
                 mgmtEmployeeSeniority.textContent = 'N/A';
             }
