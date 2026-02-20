@@ -139,4 +139,4 @@ const formPunchPolicy = document.getElementById('form-punch-policy');
 //計算薪水
 // state.js
 let adminMonthlySalaryDisplay;  // 用於顯示月薪資摘要的 DOM 元素
-let currentManagingEmployee;
+window.currentManagingEmployee = null; // 新增：全域變數，用於儲存當前正在管理的員工資料
