@@ -982,7 +982,6 @@ function initAdminEvents() {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
         if (employee) {
-            currentManagingEmployee = employee;
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
             //mgmtEmployeeId.textContent = employee.userId;
@@ -1046,7 +1045,6 @@ function initAdminEvents() {
             employeeDetailCard.style.display = 'block';
             mgmtPlaceholder.style.display = 'none';
         } else {
-            currentManagingEmployee = null;
             // 處理未選擇或找不到的情況
             employeeDetailCard.style.display = 'none';
             mgmtPlaceholder.style.display = 'block';
