@@ -959,7 +959,6 @@ function setupRequestToggle() {
     toggleButton.addEventListener('click', toggleCollapse);
 }
 
-let currentManagingEmployee = null; // 用於儲存目前在管理員頁面被選中的員工資料 (來自 state.js)
 /**
  * 統一管理員頁面事件的綁定
  */
