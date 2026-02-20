@@ -1595,7 +1595,7 @@ function resolveHourlyRateForExport() {
 async function toggleAdminStatus(userId, isChecked) {
     console.log(`正在將員工 ${userId} 的管理員權限設定為: ${isChecked}`);
     try {
-        const res = await callApifetch({ action: switchPermissions, userId, isChecked: isChecked });
+        const res = await callApifetch({ action: "switchPermissions", userId, isChecked: isChecked });
         if (res && res.ok) {
             showNotification("API 成功！回應：" + JSON.stringify(res), "success");
         } else {
