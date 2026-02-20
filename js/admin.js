@@ -983,7 +983,7 @@ function initAdminEvents() {
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
         currentManagingEmployee = allEmployeeList.find(emp => emp.userId === selectedUserId);
 
-        console.log("222Selected employee for calendar:", currentManagingEmployee);
+        console.log("22Selected employee for calendar:", currentManagingEmployee);
         if (employee) {
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
