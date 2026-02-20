@@ -959,7 +959,7 @@ function setupRequestToggle() {
     toggleButton.addEventListener('click', toggleCollapse);
 }
 
-
+let currentManagingEmployee = null; // 用於儲存目前在管理員頁面被選中的員工資料 (來自 state.js)
 /**
  * 統一管理員頁面事件的綁定
  */
@@ -983,6 +983,7 @@ function initAdminEvents() {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
         if (employee) {
+            currentManagingEmployee = employee;
             // 修正屬性名稱：src 和您的資料屬性
             mgmtEmployeeName.textContent = employee.name;
             //mgmtEmployeeId.textContent = employee.userId;
@@ -1046,6 +1047,7 @@ function initAdminEvents() {
             employeeDetailCard.style.display = 'block';
             mgmtPlaceholder.style.display = 'none';
         } else {
+            currentManagingEmployee = null;
             // 處理未選擇或找不到的情況
             employeeDetailCard.style.display = 'none';
             mgmtPlaceholder.style.display = 'block';
