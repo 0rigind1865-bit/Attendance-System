@@ -981,7 +981,7 @@ function initAdminEvents() {
     adminSelectEmployeeMgmt.addEventListener('change', async (e) => {
         const selectedUserId = e.target.value;
         const employee = allEmployeeList.find(emp => emp.userId === selectedUserId);
-        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === adminSelectedUserId);
+        currentManagingEmployee = allEmployeeList.find(emp => emp.userId === selectedUserId);
 
         console.log("222Selected employee for calendar:", currentManagingEmployee);
         if (employee) {
