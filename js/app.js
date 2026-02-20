@@ -159,6 +159,7 @@ function getDOMElements() {
     pendingRequestsContent = document.getElementById('pending-requests-content');//
     toggleRequestsBtn = document.getElementById('toggle-requests-btn');
     adminCurrentMonthDisplay = document.getElementById('admin-current-month-display');
+    // 管理員專用
 
 
 }

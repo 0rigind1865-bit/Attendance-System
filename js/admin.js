@@ -1588,14 +1588,52 @@ function resolveHourlyRateForExport() {
     return { baseMonthly: base, hourlyRate: base > 0 ? (base / standardMonthHours) : 0 };
 }
 /**
- * 切換員工的管理員權限（示範用，實際應該呼叫 API 並更新資料庫）
+ * 切換員工的帳號啟用（）
+ * @param {string} userId - 員工的 userId
+ * @param {boolean} isChecked - 是否勾選（true 表示開啟帳號啟用）
+ */
+async function togglePermissionsStatus(userId, isChecked) {
+    console.log(`正在將員工 ${userId} 的帳號啟用設定為: ${isChecked}`);
+    try {
+        const res = await callApifetch({ action: "switchPermissions", userId, isChecked: isChecked });
+        if (res && res.ok) {
+            showNotification("API 成功！回應：" + JSON.stringify(res), "success");
+        } else {
+            showNotification("API 測試失敗：" + (res ? res.msg : "無回應資料"), "error");
+        }
+    } catch (error) {
+        console.error("API 呼叫發生錯誤:", error);
+        showNotification("API 呼叫失敗，請檢查網路連線或後端服務。", "error");
+    }
+}
+/**
+ * 切換員工的管理員權限
  * @param {string} userId - 員工的 userId
  * @param {boolean} isChecked - 是否勾選（true 表示開啟管理員權限）
  */
-async function toggleAdminStatus(userId, isChecked) {
-    console.log(`正在將員工 ${userId} 的管理員權限設定為: ${isChecked}`);
+async function toggleEnableStatus(userId, isChecked) {
+    console.log(`正在切換員工 ${userId} 的帳號啟用設定為: ${isChecked}`);
     try {
-        const res = await callApifetch({ action: "switchPermissions", userId, isChecked: isChecked });
+        const res = await callApifetch({ action: "switchEnable", userId, isChecked: isChecked });
+        if (res && res.ok) {
+            showNotification("API 成功！回應：" + JSON.stringify(res), "success");
+        } else {
+            showNotification("API 測試失敗：" + (res ? res.msg : "無回應資料"), "error");
+        }
+    } catch (error) {
+        console.error("API 呼叫發生錯誤:", error);
+        showNotification("API 呼叫失敗，請檢查網路連線或後端服務。", "error");
+    }
+}
+/**
+ * 設定員工的薪資
+ * @param {string} userId - 員工的 userId
+ * @param {number} salary - 員工的薪資
+ */
+async function setEmployeeSalary(userId, salary) {
+    console.log(`正在設定員工 ${userId} 的薪資為: ${salary}`);
+    try {
+        const res = await callApifetch({ action: "setSalary", userId, salary: Number(salary) });
         if (res && res.ok) {
             showNotification("API 成功！回應：" + JSON.stringify(res), "success");
         } else {
